@@ -34,15 +34,26 @@ where most projects get stuck, so we de-risk it on day one.
       builds last ~1 year, so no 7-day re-install churn.
 - Branch: `scaffold-and-build-pipeline`.
 
-## Phase 2 — Import + persistence (this already solves offloading)  `[ ]`
+## Phase 2 — Import + persistence (this already solves offloading)  `[x]`
 **Goal:** get books onto the device, permanently, and list them. No reading yet,
 but the core problem is solved here.
-- [ ] Document picker → copy file into `Paths.document/books/`.
-- [ ] Register app as a handler for `.epub` / `.pdf` (share-sheet "Open in…").
-- [ ] `expo-sqlite` schema; store metadata + **relative** path.
-- [ ] Library screen: list/grid of imported books.
-- [ ] Launch-time migration that re-resolves relative paths (survives reinstall).
+- [x] Document picker → copy file into `Paths.document/books/`.
+- [x] Register app as a handler for `.epub` / `.pdf` (share-sheet "Open in…").
+- [x] `expo-sqlite` schema; store metadata + **relative** path.
+- [x] Library screen: list/grid of imported books.
+- [x] Launch-time migration that re-resolves relative paths (survives app
+      **offload** / update — see note below).
 - Branch: `import-and-persistence`.
+
+> **What "survives reinstall" means.** Installing a new build **over** the
+> existing app (an app update — *don't delete first*) keeps the app's
+> `Documents/` and SQLite catalog but may change the container path's UUID.
+> Storing **relative** paths and rebuilding the absolute URI at launch keeps
+> books resolvable across that change. (iOS *Offload App* is the same scenario,
+> but that option only appears for App Store apps, not dev/ad-hoc builds.) A full
+> **Delete App** destroys the entire data container (books + catalog) — nothing
+> survives that until an optional cloud-sync layer exists. Test reinstall-over,
+> not delete.
 
 ## Phase 3 — PDF reader  `[ ]`
 **Goal:** open a PDF, scroll smoothly, remember where you were.

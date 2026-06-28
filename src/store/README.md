@@ -3,4 +3,5 @@
 Zustand stores: the library catalog (loaded from SQLite) and reader settings
 (theme + typography). Persistence is explicit — stores read/write SQLite/MMKV.
 
-_Empty for Phase 1 (scaffold). Lands as features are built._
+_Phase 2: `library-store.ts` (catalog state — init/reconcile, import, remove).
+Reader settings land in the reader-settings phase._

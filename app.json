@@ -2,6 +2,7 @@
   "expo": {
     "name": "Lesa",
     "slug": "lesa",
+    "owner": "myaschm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +11,23 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.myaschmitz.lesa",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": false,
+        "UIFileSharingEnabled": true,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "EPUB Book",
+            "LSHandlerRank": "Default",
+            "LSItemContentTypes": ["org.idpf.epub-container"]
+          },
+          {
+            "CFBundleTypeName": "PDF Document",
+            "LSHandlerRank": "Default",
+            "LSItemContentTypes": ["com.adobe.pdf"]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.myaschmitz.lesa",
@@ -37,11 +54,24 @@
             "imageWidth": 76
           }
         }
+      ],
+      "expo-sqlite",
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": false,
+          "enableFileSharing": true
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a32ad5d4-2d36-4125-a62a-0f91b5d80425"
+      }
     }
   }
 }
