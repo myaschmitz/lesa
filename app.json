@@ -1,16 +1,20 @@
 {
   "expo": {
-    "name": "lesa-scaffold",
-    "slug": "lesa-scaffold",
+    "name": "Lesa",
+    "slug": "lesa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "lesascaffold",
+    "scheme": "lesa",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.myaschmitz.lesa",
+      "supportsTablet": true
     },
     "android": {
+      "package": "com.myaschmitz.lesa",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
