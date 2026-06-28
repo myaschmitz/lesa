@@ -21,16 +21,15 @@ purge.** Everything below serves that goal plus a smooth, intuitive reader.
 - [x] `AGENTS.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`.
 - Branch: `project-planning-and-docs`.
 
-## Phase 1 — Scaffold + get a build on your phone  `[~]`
+## Phase 1 — Scaffold + get a build on your phone  `[x]`
 **Goal:** prove the native-module pipeline works BEFORE writing features. This is
 where most projects get stuck, so we de-risk it on day one.
 - [x] `create-expo-app` with TypeScript + Expo Router.
 - [x] Enable New Architecture; set `strict` TS; add ESLint + Prettier.
 - [x] Add ONE native lib (`@kishannareshpal/expo-pdf`) to prove prebuild works.
 - [x] `expo prebuild` verified; EAS `preview` profile configured (`eas.json`).
-- [ ] Produce a **preview build** and install it — needs your Apple login +
-      device registration (run `eas login && eas init && eas build -p ios
-      --profile preview` on your Mac; see README).
+- [x] Produced an EAS preview build; installed on iPhone — PDF renders, and it
+      still renders in airplane mode (offline-first confirmed).
 - [x] **Signing decided:** using a **paid Apple Developer account** — preview
       builds last ~1 year, so no 7-day re-install churn.
 - Branch: `scaffold-and-build-pipeline`.
