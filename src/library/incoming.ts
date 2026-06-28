@@ -1,5 +1,6 @@
 import { File } from 'expo-file-system';
 
+import { importLog } from '@/library/debug';
 import { inferFormat, type ImportCandidate } from '@/library/import';
 
 /**
@@ -8,18 +9,36 @@ import { inferFormat, type ImportCandidate } from '@/library/import';
  * supported book file.
  */
 export function candidateFromUri(uri: string): ImportCandidate | null {
-  if (!uri.startsWith('file://')) return null;
+  if (!uri.startsWith('file://')) {
+    importLog('candidateFromUri: not a file:// uri', uri);
+    return null;
+  }
 
   let file: File;
   try {
     file = new File(uri);
-  } catch {
+  } catch (error) {
+    importLog('candidateFromUri: new File() threw', { uri, error });
     return null;
   }
-  if (!file.exists) return null;
+
+  const exists = file.exists;
+  importLog('candidateFromUri: file info', {
+    uri,
+    name: file.name,
+    exists,
+    size: file.size,
+  });
+  if (!exists) {
+    importLog('candidateFromUri: file does not exist (security-scoped?)', uri);
+    return null;
+  }
 
   const format = inferFormat(file.name);
-  if (!format) return null;
+  if (!format) {
+    importLog('candidateFromUri: unsupported format for name', file.name);
+    return null;
+  }
 
   return {
     uri,

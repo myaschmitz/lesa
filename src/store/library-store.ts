@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { deleteBook, getAllBooks } from '@/db/books';
+import { importLog } from '@/library/debug';
 import { confirmDuplicate } from '@/library/duplicate-prompt';
 import {
   findDuplicateFor,
@@ -88,14 +89,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   importUri: async (uri: string) => {
+    importLog('importUri called', uri);
     const candidate = candidateFromUri(uri);
-    if (!candidate) return 0;
+    if (!candidate) {
+      importLog('importUri: no candidate, nothing imported', uri);
+      return 0;
+    }
     set({ importing: true });
     try {
       const imported = await importCandidates([candidate]);
+      importLog('importUri: imported count', imported);
       if (imported > 0) await get().refresh();
       return imported;
     } catch (error) {
+      importLog('importUri: import failed', error);
       set({ error: errorMessage(error) });
       return 0;
     } finally {
