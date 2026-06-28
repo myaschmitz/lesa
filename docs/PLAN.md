@@ -41,8 +41,16 @@ but the core problem is solved here.
 - [x] Register app as a handler for `.epub` / `.pdf` (share-sheet "Open in…").
 - [x] `expo-sqlite` schema; store metadata + **relative** path.
 - [x] Library screen: list/grid of imported books.
-- [x] Launch-time migration that re-resolves relative paths (survives reinstall).
+- [x] Launch-time migration that re-resolves relative paths (survives app
+      **offload** / update — see note below).
 - Branch: `import-and-persistence`.
+
+> **What "survives reinstall" means.** iOS *Offload App* (and ordinary app
+> updates) keep the app's `Documents/` and SQLite catalog but may change the
+> container path's UUID. Storing **relative** paths and rebuilding the absolute
+> URI at launch keeps books resolvable across that change. A full **Delete App**
+> destroys the entire data container (books + catalog) — nothing survives that
+> until an optional cloud-sync layer exists. Test offload, not delete.
 
 ## Phase 3 — PDF reader  `[ ]`
 **Goal:** open a PDF, scroll smoothly, remember where you were.
