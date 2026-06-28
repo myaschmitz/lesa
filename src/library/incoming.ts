@@ -47,3 +47,18 @@ export function candidateFromUri(uri: string): ImportCandidate | null {
     format,
   };
 }
+
+/**
+ * Deletes the temporary copy iOS placed in our sandbox (the share-sheet
+ * "Inbox") after we've imported it. Safe to call on any inbound URI; only
+ * sandbox files are deletable, and failures are swallowed.
+ */
+export function cleanupIncomingFile(uri: string): void {
+  if (!uri.startsWith('file://')) return;
+  try {
+    const file = new File(uri);
+    if (file.exists) file.delete();
+  } catch (error) {
+    importLog('cleanupIncomingFile failed', { uri, error });
+  }
+}

@@ -9,7 +9,7 @@ import {
   pickBooks,
   type ImportCandidate,
 } from '@/library/import';
-import { candidateFromUri } from '@/library/incoming';
+import { candidateFromUri, cleanupIncomingFile } from '@/library/incoming';
 import { deleteBookFile } from '@/library/paths';
 import { reconcileCatalog } from '@/library/reconcile';
 import type { Book } from '@/types/book';
@@ -99,6 +99,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     try {
       const imported = await importCandidates([candidate]);
       importLog('importUri: imported count', imported);
+      cleanupIncomingFile(uri);
       if (imported > 0) await get().refresh();
       return imported;
     } catch (error) {

@@ -13,7 +13,7 @@
       "bundleIdentifier": "com.myaschmitz.lesa",
       "supportsTablet": true,
       "infoPlist": {
-        "LSSupportsOpeningDocumentsInPlace": true,
+        "LSSupportsOpeningDocumentsInPlace": false,
         "UIFileSharingEnabled": true,
         "CFBundleDocumentTypes": [
           {
@@ -59,7 +59,7 @@
       [
         "expo-file-system",
         {
-          "supportsOpeningDocumentsInPlace": true,
+          "supportsOpeningDocumentsInPlace": false,
           "enableFileSharing": true
         }
       ]
