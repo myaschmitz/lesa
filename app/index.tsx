@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { BookCard } from '@/components/book-card';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +15,7 @@ const NUM_COLUMNS = 3;
 
 export default function LibraryScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const books = useLibraryStore((s) => s.books);
   const status = useLibraryStore((s) => s.status);
   const importing = useLibraryStore((s) => s.importing);
@@ -26,8 +28,8 @@ export default function LibraryScreen() {
     void importFromPicker();
   };
 
-  const onOpenBook = (_book: Book) => {
-    Alert.alert('Reader coming soon', 'Reading is added in a later phase. The book is saved here.');
+  const onOpenBook = (book: Book) => {
+    router.push(`/reader/${book.id}`);
   };
 
   const onRemoveBook = (book: Book) => {
