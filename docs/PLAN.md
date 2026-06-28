@@ -28,9 +28,8 @@ where most projects get stuck, so we de-risk it on day one.
 - [ ] Enable New Architecture; set `strict` TS; add ESLint + Prettier.
 - [ ] Add ONE native lib (e.g. the PDF lib) to prove prebuild works.
 - [ ] `expo prebuild`, configure EAS, produce a **preview build** you install.
-- [ ] **Decision needed from you:** free Apple ID (app expires every 7 days) vs
-      paid Apple Developer account ($99/yr, builds last ~1 year). For
-      plane-reading reliability, paid is recommended.
+- [x] **Signing decided:** using a **paid Apple Developer account** — preview
+      builds last ~1 year, so no 7-day re-install churn.
 - Branch: `scaffold-and-build-pipeline`.
 
 ## Phase 2 — Import + persistence (this already solves offloading)  `[ ]`

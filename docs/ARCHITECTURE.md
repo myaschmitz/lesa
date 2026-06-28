@@ -151,9 +151,8 @@ tokens so colors stay consistent everywhere. A theme is essentially a
 - **Preview build** — an EAS profile that produces an installable app you
   sideload onto your own device. That is the "native app on my phone" artifact.
 - **New Architecture stays ON** (RN default; retrofitting later is painful).
-- **Signing caveat:** a free Apple ID expires sideloaded apps after 7 days; a
-  paid Apple Developer account ($99/yr) lasts ~1 year. Recommended for an app
-  you rely on offline.
+- **Signing:** using a **paid Apple Developer account**, so preview builds last
+  ~1 year (a free Apple ID would expire sideloaded apps after 7 days).
 
 ## Designed-for-later: cloud sync (NOT built now)
 The current design leaves clean seams for an optional future sync layer:
