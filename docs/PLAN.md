@@ -34,14 +34,14 @@ where most projects get stuck, so we de-risk it on day one.
       builds last ~1 year, so no 7-day re-install churn.
 - Branch: `scaffold-and-build-pipeline`.
 
-## Phase 2 — Import + persistence (this already solves offloading)  `[ ]`
+## Phase 2 — Import + persistence (this already solves offloading)  `[x]`
 **Goal:** get books onto the device, permanently, and list them. No reading yet,
 but the core problem is solved here.
-- [ ] Document picker → copy file into `Paths.document/books/`.
-- [ ] Register app as a handler for `.epub` / `.pdf` (share-sheet "Open in…").
-- [ ] `expo-sqlite` schema; store metadata + **relative** path.
-- [ ] Library screen: list/grid of imported books.
-- [ ] Launch-time migration that re-resolves relative paths (survives reinstall).
+- [x] Document picker → copy file into `Paths.document/books/`.
+- [x] Register app as a handler for `.epub` / `.pdf` (share-sheet "Open in…").
+- [x] `expo-sqlite` schema; store metadata + **relative** path.
+- [x] Library screen: list/grid of imported books.
+- [x] Launch-time migration that re-resolves relative paths (survives reinstall).
 - Branch: `import-and-persistence`.
 
 ## Phase 3 — PDF reader  `[ ]`

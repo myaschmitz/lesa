@@ -10,7 +10,23 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.myaschmitz.lesa",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "UIFileSharingEnabled": true,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "EPUB Book",
+            "LSHandlerRank": "Default",
+            "LSItemContentTypes": ["org.idpf.epub-container"]
+          },
+          {
+            "CFBundleTypeName": "PDF Document",
+            "LSHandlerRank": "Default",
+            "LSItemContentTypes": ["com.adobe.pdf"]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.myaschmitz.lesa",
@@ -36,6 +52,14 @@
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
         }
       ]
     ],
