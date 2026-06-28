@@ -45,12 +45,15 @@ but the core problem is solved here.
       **offload** / update — see note below).
 - Branch: `import-and-persistence`.
 
-> **What "survives reinstall" means.** iOS *Offload App* (and ordinary app
-> updates) keep the app's `Documents/` and SQLite catalog but may change the
-> container path's UUID. Storing **relative** paths and rebuilding the absolute
-> URI at launch keeps books resolvable across that change. A full **Delete App**
-> destroys the entire data container (books + catalog) — nothing survives that
-> until an optional cloud-sync layer exists. Test offload, not delete.
+> **What "survives reinstall" means.** Installing a new build **over** the
+> existing app (an app update — *don't delete first*) keeps the app's
+> `Documents/` and SQLite catalog but may change the container path's UUID.
+> Storing **relative** paths and rebuilding the absolute URI at launch keeps
+> books resolvable across that change. (iOS *Offload App* is the same scenario,
+> but that option only appears for App Store apps, not dev/ad-hoc builds.) A full
+> **Delete App** destroys the entire data container (books + catalog) — nothing
+> survives that until an optional cloud-sync layer exists. Test reinstall-over,
+> not delete.
 
 ## Phase 3 — PDF reader  `[ ]`
 **Goal:** open a PDF, scroll smoothly, remember where you were.
