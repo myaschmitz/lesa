@@ -1,4 +1,3 @@
-import { importLog } from '@/library/debug';
 import { enqueueIncomingBook } from '@/library/incoming-queue';
 
 // File extensions Lesa imports. Kept in sync with the document types declared in
@@ -29,21 +28,16 @@ function hasBookExtension(path: string): boolean {
  * We intercept those file URLs, queue any supported book for import, and send
  * the navigator to the Library (`/`) instead of trying to route the file path.
  */
-export function redirectSystemPath({ path, initial }: { path: string; initial: boolean }): string {
-  importLog('redirectSystemPath', { path, initial });
+export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     if (isFileUrl(path)) {
       if (hasBookExtension(path)) {
-        importLog('enqueue book file', path);
         enqueueIncomingBook(path);
-      } else {
-        importLog('file url without book extension, ignoring import', path);
       }
       // Never let a file hand-off fall through to the router; it has no route.
       return '/';
     }
-  } catch (error) {
-    importLog('redirectSystemPath error', error);
+  } catch {
     return '/';
   }
   return path;

@@ -1,6 +1,5 @@
 import { File } from 'expo-file-system';
 
-import { importLog } from '@/library/debug';
 import { inferFormat, type ImportCandidate } from '@/library/import';
 
 /**
@@ -10,33 +9,22 @@ import { inferFormat, type ImportCandidate } from '@/library/import';
  */
 export function candidateFromUri(uri: string): ImportCandidate | null {
   if (!uri.startsWith('file://')) {
-    importLog('candidateFromUri: not a file:// uri', uri);
     return null;
   }
 
   let file: File;
   try {
     file = new File(uri);
-  } catch (error) {
-    importLog('candidateFromUri: new File() threw', { uri, error });
+  } catch {
     return null;
   }
 
-  const exists = file.exists;
-  importLog('candidateFromUri: file info', {
-    uri,
-    name: file.name,
-    exists,
-    size: file.size,
-  });
-  if (!exists) {
-    importLog('candidateFromUri: file does not exist (security-scoped?)', uri);
+  if (!file.exists) {
     return null;
   }
 
   const format = inferFormat(file.name);
   if (!format) {
-    importLog('candidateFromUri: unsupported format for name', file.name);
     return null;
   }
 
@@ -58,7 +46,7 @@ export function cleanupIncomingFile(uri: string): void {
   try {
     const file = new File(uri);
     if (file.exists) file.delete();
-  } catch (error) {
-    importLog('cleanupIncomingFile failed', { uri, error });
+  } catch {
+    // Best-effort cleanup; ignore failures.
   }
 }
