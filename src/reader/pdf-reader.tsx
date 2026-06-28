@@ -36,10 +36,17 @@ export function PdfReader({
       pageColorInverted={theme.isDark}
       onPageChanged={({ pageIndex }) => {
         if (!loadedRef.current) return;
+        if (__DEV__) console.log('[PdfReader] page changed -> saving page', pageIndex);
         onPositionChange(serializePdfPosition({ page: pageIndex }));
       }}
       onLoadComplete={() => {
         loadedRef.current = true;
+        if (__DEV__) {
+          console.log(
+            '[PdfReader] document loaded; restoring to page',
+            initialPage ?? '(none saved)',
+          );
+        }
         onReady?.();
       }}
       onError={({ code, message }) => {
