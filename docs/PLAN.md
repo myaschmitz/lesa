@@ -81,21 +81,21 @@ wrong). Themes first — cheap and high impact.
 - [x] Persist settings; apply consistently across both engines.
 - Branch: `reader-settings`.
 
-## Phase 6 — Immersive reader chrome  `[ ]`
+## Phase 6 — Immersive reader chrome  `[x]`
 **Goal:** a distraction-free, Apple Books-style reading screen. Replace the solid
 top bar with minimal, floating, auto-hiding controls so the book fills the
 screen. Applies to both PDF and EPUB via the existing `ReaderView` abstraction.
-- [ ] Hide the navigation/top bar; book content goes edge-to-edge.
-- [ ] **Tap center** to toggle chrome (overlays fade in/out); chrome auto-hides
+- [x] Hide the navigation/top bar; book content goes edge-to-edge.
+- [x] **Tap center** to toggle chrome (overlays fade in/out); chrome auto-hides
       after a short idle while reading.
-- [ ] **Title bubble** top-center: just the title (no clutter), solid pill
+- [x] **Title bubble** top-center: just the title (no clutter), solid pill
       background so it stays legible over any page.
-- [ ] **Close (X)** top-right in a solid circle → back to Library.
-- [ ] **Settings** bottom-right: circular FAB with an icon → opens the existing
+- [x] **Close (X)** top-right in a solid circle → back to Library.
+- [x] **Settings** bottom-right: circular FAB with an icon → opens the existing
       reader-settings sheet.
-- [ ] **Page indicator** bottom-center: "page X of Y" (PDF: real pages; EPUB:
+- [x] **Page indicator** bottom-center: "page X of Y" (PDF: real pages; EPUB:
       best-effort from locator/progress).
-- [ ] Respect safe-area insets; theme overlays from theme tokens; smooth fade.
+- [x] Respect safe-area insets; theme overlays from theme tokens; smooth fade.
 - Branch: `immersive-reader-chrome`.
 
 ## Phase 7 — Polish  `[ ]`

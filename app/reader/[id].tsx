@@ -1,18 +1,22 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { ReaderChrome } from '@/components/reader-chrome';
 import { ReaderSettingsSheet } from '@/components/reader-settings-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { bookFileExists, toAbsoluteUri } from '@/library/paths';
-import { ReaderView, useReaderTheme, useReaderTypography } from '@/reader';
+import { ReaderView, useReaderTheme, useReaderTypography, type ReaderProgress } from '@/reader';
 import { useLibraryStore } from '@/store/library-store';
 import { useSettingsStore } from '@/store/settings-store';
+import { resolveThemeTokens } from '@/theme/themes';
 import type { Book } from '@/types/book';
 
 const POSITION_SAVE_DEBOUNCE_MS = 800;
+const CHROME_AUTO_HIDE_MS = 3000;
 
 type LoadState =
   | { status: 'loading' }
@@ -21,8 +25,15 @@ type LoadState =
 
 export default function ReaderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const scheme = useColorScheme();
   const theme = useReaderTheme();
   const typography = useReaderTypography();
+  const themeName = useSettingsStore((s) => s.themeName);
+  const tokens = useMemo(
+    () => resolveThemeTokens(themeName, scheme === 'dark'),
+    [themeName, scheme],
+  );
   const pdfPaging = useSettingsStore((s) => s.pdfPaging);
   const pdfFit = useSettingsStore((s) => s.pdfFit);
   const books = useLibraryStore((s) => s.books);
@@ -34,6 +45,8 @@ export default function ReaderScreen() {
   const [notFound, setNotFound] = useState(false);
   const [ready, setReady] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const [progress, setProgress] = useState<ReaderProgress | undefined>();
 
   // Cold start / deep link: the catalog may not be in memory yet, so resolve the
   // book through the store (which falls back to the database).
@@ -59,6 +72,20 @@ export default function ReaderScreen() {
     if (book) void saveReadingPosition(book.id, position);
   }, POSITION_SAVE_DEBOUNCE_MS);
 
+  // Auto-hide chrome after a short idle so the book fills the screen while
+  // reading; showing it (toggle/settings) restarts the timer.
+  useEffect(() => {
+    if (!chromeVisible || settingsVisible) return;
+    const t = setTimeout(() => setChromeVisible(false), CHROME_AUTO_HIDE_MS);
+    return () => clearTimeout(t);
+  }, [chromeVisible, settingsVisible]);
+
+  const toggleChrome = useCallback(() => setChromeVisible((v) => !v), []);
+  const openSettings = useCallback(() => {
+    setChromeVisible(true);
+    setSettingsVisible(true);
+  }, []);
+
   const state: LoadState = useMemo(() => {
     if (notFound) return { status: 'missing' };
     if (!book) return { status: 'loading' };
@@ -70,36 +97,23 @@ export default function ReaderScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerBackTitle: 'Library',
-          title: book?.title ?? 'Reader',
-          headerRight: () =>
-            state.status === 'ready' ? (
-              <Pressable
-                onPress={() => setSettingsVisible(true)}
-                hitSlop={Spacing.three}
-                accessibilityLabel="Reading settings"
-              >
-                <ThemedText type="smallBold">Aa</ThemedText>
-              </Pressable>
-            ) : null,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       {state.status === 'ready' ? (
-        <ReaderView
-          format={state.book.format}
-          absolutePath={state.absolutePath}
-          initialPosition={state.book.lastPosition ?? undefined}
-          theme={theme}
-          typography={typography}
-          pdfPaging={pdfPaging}
-          pdfFit={pdfFit}
-          onPositionChange={persistPosition}
-          onReady={() => setReady(true)}
-        />
+        <Pressable style={styles.fill} onPress={toggleChrome}>
+          <ReaderView
+            format={state.book.format}
+            absolutePath={state.absolutePath}
+            initialPosition={state.book.lastPosition ?? undefined}
+            theme={theme}
+            typography={typography}
+            pdfPaging={pdfPaging}
+            pdfFit={pdfFit}
+            onPositionChange={persistPosition}
+            onProgress={setProgress}
+            onReady={() => setReady(true)}
+          />
+        </Pressable>
       ) : null}
 
       {state.status === 'missing' ? <MissingState /> : null}
@@ -108,6 +122,17 @@ export default function ReaderScreen() {
         <View style={[styles.overlay, { backgroundColor: theme.background }]}>
           <ActivityIndicator color={theme.text} />
         </View>
+      ) : null}
+
+      {state.status === 'ready' && ready ? (
+        <ReaderChrome
+          tokens={tokens}
+          visible={chromeVisible}
+          title={state.book.title}
+          progress={progress}
+          onClose={() => router.back()}
+          onOpenSettings={openSettings}
+        />
       ) : null}
 
       {state.status === 'ready' ? (
@@ -143,6 +168,9 @@ function MissingState() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  fill: {
     flex: 1,
   },
   overlay: {
