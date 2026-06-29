@@ -39,6 +39,7 @@ function EpubReaderInner({
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
+  const { goToLocation } = useReader();
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
@@ -61,6 +62,10 @@ function EpubReaderInner({
         defaultTheme={defaultTheme}
         onReady={() => {
           readyRef.current = true;
+          // Re-anchor after the continuous layout has settled. `initialLocation`
+          // jumps before sections finish measuring, which lands ~half a page off;
+          // a second jump once ready snaps back to the exact saved CFI.
+          if (initialCfi) setTimeout(() => goToLocation(initialCfi), 250);
           onReady?.();
         }}
         onLocationChange={(_total, location) => {
