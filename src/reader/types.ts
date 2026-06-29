@@ -15,6 +15,8 @@
 export interface ReaderTheme {
   /** Page / canvas background colour. */
   background: string;
+  /** Solid fill for floating controls (pills/buttons) so they stay legible. */
+  backgroundElement: string;
   /** Foreground colour for reader chrome (loading states, messages). */
   text: string;
   /** Whether this is a dark theme; engines use it to pick a matching tint. */
@@ -29,6 +31,22 @@ export interface ReaderTypography {
   fontFamily: string;
   fontSize: number;
   lineHeight: number;
+}
+
+/**
+ * Display-only reading progress for the immersive chrome's page indicator. This
+ * is deliberately separate from the opaque {@link ReaderViewProps.initialPosition}
+ * token: PDFs report exact 1-based page + count, EPUBs (reflowable) report a
+ * fractional 0–1 progress. Either may be absent for the format that can't supply
+ * it; the indicator renders "Page X of Y" when pages are known, else a percent.
+ */
+export interface ReaderProgress {
+  /** PDF: current 1-based page. EPUB: undefined (no fixed pagination). */
+  page?: number;
+  /** PDF: total pages. EPUB: undefined. */
+  pageCount?: number;
+  /** EPUB: fractional progress through the book, 0–1. PDF: undefined. */
+  fraction?: number;
 }
 
 /**
@@ -47,6 +65,8 @@ export interface ReaderViewProps {
   typography?: ReaderTypography;
   /** Emits an opaque per-format position token as the reading position changes. */
   onPositionChange: (position: string) => void;
+  /** Display-only progress for the page indicator; never used for persistence. */
+  onProgress?: (progress: ReaderProgress) => void;
   /** Called once the document has loaded and is ready to read. */
   onReady?: () => void;
 }

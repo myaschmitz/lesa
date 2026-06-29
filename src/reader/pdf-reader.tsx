@@ -28,6 +28,7 @@ export function PdfReader({
   paging = false,
   fit = 'width',
   onPositionChange,
+  onProgress,
   onReady,
 }: PdfReaderProps) {
   const initialPage = useMemo(() => parsePdfPosition(initialPosition)?.page, [initialPosition]);
@@ -45,12 +46,13 @@ export function PdfReader({
       pagingEnabled={paging}
       pageGap={Spacing.two}
       pageColorInverted={theme.isDark}
-      onPageChanged={({ pageIndex }) => {
+      onPageChanged={({ pageIndex, pageCount }) => {
         if (!loadedRef.current) return;
         if (__DEV__) console.log('[PdfReader] page changed -> saving page', pageIndex);
         onPositionChange(serializePdfPosition({ page: pageIndex }));
+        onProgress?.({ page: pageIndex + 1, pageCount });
       }}
-      onLoadComplete={() => {
+      onLoadComplete={({ pageCount }) => {
         loadedRef.current = true;
         if (__DEV__) {
           console.log(
@@ -58,6 +60,7 @@ export function PdfReader({
             initialPage ?? '(none saved)',
           );
         }
+        onProgress?.({ page: (initialPage ?? 0) + 1, pageCount });
         onReady?.();
       }}
       onError={({ code, message }) => {

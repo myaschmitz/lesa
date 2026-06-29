@@ -38,6 +38,7 @@ function EpubReaderInner({
   theme,
   typography,
   onPositionChange,
+  onProgress,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
@@ -121,6 +122,11 @@ function EpubReaderInner({
             lastCfiRef.current = cfi;
             onPositionChange(serializeEpubPosition({ cfi }));
           }
+          // Best-effort, display-only progress for the page indicator. epub.js is
+          // reflowable so there's no fixed page count; the locator percentage is
+          // the closest honest signal. Shown as "X%".
+          const fraction = location?.start?.percentage;
+          if (typeof fraction === 'number') onProgress?.({ fraction });
         }}
         onDisplayError={(message) => {
           console.warn(`[EpubReader] failed to render EPUB: ${message}`);
@@ -138,7 +144,7 @@ function ContentsButton({ theme, onPress }: { theme: ReaderTheme; onPress: () =>
     <Pressable
       accessibilityLabel="Chapters"
       onPress={onPress}
-      style={[styles.tocButton, { borderColor: theme.text }]}
+      style={[styles.tocButton, { backgroundColor: theme.backgroundElement }]}
     >
       <Text style={{ color: theme.text }}>Chapters</Text>
     </Pressable>
@@ -207,8 +213,7 @@ const styles = StyleSheet.create({
   tocButton: {
     position: 'absolute',
     bottom: Spacing.four,
-    right: Spacing.four,
-    borderWidth: StyleSheet.hairlineWidth,
+    left: Spacing.four,
     borderRadius: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,

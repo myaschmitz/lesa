@@ -77,7 +77,12 @@ export function resolveThemeTokens(name: ReaderThemeName, deviceIsDark: boolean)
 
 /** Narrows a {@link ThemeTokens} set to the chrome-and-engine {@link ReaderTheme}. */
 export function toReaderTheme(tokens: ThemeTokens): ReaderTheme {
-  return { background: tokens.background, text: tokens.text, isDark: tokens.isDark };
+  return {
+    background: tokens.background,
+    backgroundElement: tokens.backgroundElement,
+    text: tokens.text,
+    isDark: tokens.isDark,
+  };
 }
 
 export const THEME_LABELS: Record<ReaderThemeName, string> = {
