@@ -60,9 +60,7 @@ export default function ReaderScreen() {
     return { status: 'ready', book, absolutePath: toAbsoluteUri(book.relativePath) };
   }, [book, notFound]);
 
-  const showLoadingOverlay =
-    state.status === 'loading' ||
-    (state.status === 'ready' && state.book.format === 'pdf' && !ready);
+  const showLoadingOverlay = state.status === 'loading' || (state.status === 'ready' && !ready);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
