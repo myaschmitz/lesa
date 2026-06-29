@@ -1,21 +1,25 @@
-import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSettingsStore } from '@/store/settings-store';
+import { resolveThemeTokens, toReaderTheme } from '@/theme/themes';
+import { DEFAULT_TYPOGRAPHY } from '@/theme/typography';
 
-import type { ReaderTheme } from './types';
+import type { ReaderTheme, ReaderTypography } from './types';
 
 /**
- * Builds a minimal {@link ReaderTheme} from the app's light/dark colour scheme so
- * the reader engines stay visually consistent with the chrome without hardcoding
- * colours. Full theming (sepia, white, black) lands in the reader-settings phase.
+ * Resolves the user's selected reader theme to {@link ReaderTheme} tokens. The
+ * `system` theme follows the device light/dark scheme; every other theme is
+ * explicit. Tokens are defined once in `src/theme` so chrome and engines match.
  */
 export function useReaderTheme(): ReaderTheme {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
+  const themeName = useSettingsStore((s) => s.themeName);
+  return toReaderTheme(resolveThemeTokens(themeName, scheme === 'dark'));
+}
 
-  return {
-    background: colors.background,
-    text: colors.text,
-    isDark,
-  };
+/** EPUB typography prefs (font family, size %, line height) from settings. */
+export function useReaderTypography(): ReaderTypography {
+  const fontFamily = useSettingsStore((s) => s.fontFamily);
+  const fontSize = useSettingsStore((s) => s.fontSize);
+  const lineHeight = useSettingsStore((s) => s.lineHeight);
+  return { fontFamily: fontFamily || DEFAULT_TYPOGRAPHY.fontFamily, fontSize, lineHeight };
 }

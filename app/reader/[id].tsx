@@ -2,12 +2,14 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { ReaderSettingsSheet } from '@/components/reader-settings-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { bookFileExists, toAbsoluteUri } from '@/library/paths';
-import { ReaderView, useReaderTheme } from '@/reader';
+import { ReaderView, useReaderTheme, useReaderTypography } from '@/reader';
 import { useLibraryStore } from '@/store/library-store';
+import { useSettingsStore } from '@/store/settings-store';
 import type { Book } from '@/types/book';
 
 const POSITION_SAVE_DEBOUNCE_MS = 800;
@@ -20,6 +22,9 @@ type LoadState =
 export default function ReaderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useReaderTheme();
+  const typography = useReaderTypography();
+  const pdfPaging = useSettingsStore((s) => s.pdfPaging);
+  const pdfFit = useSettingsStore((s) => s.pdfFit);
   const books = useLibraryStore((s) => s.books);
   const loadBook = useLibraryStore((s) => s.loadBook);
   const markOpened = useLibraryStore((s) => s.markOpened);
@@ -28,6 +33,7 @@ export default function ReaderScreen() {
   const [book, setBook] = useState<Book | null>(() => books.find((b) => b.id === id) ?? null);
   const [notFound, setNotFound] = useState(false);
   const [ready, setReady] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
   // Cold start / deep link: the catalog may not be in memory yet, so resolve the
   // book through the store (which falls back to the database).
@@ -69,6 +75,16 @@ export default function ReaderScreen() {
           headerShown: true,
           headerBackTitle: 'Library',
           title: book?.title ?? 'Reader',
+          headerRight: () =>
+            state.status === 'ready' ? (
+              <Pressable
+                onPress={() => setSettingsVisible(true)}
+                hitSlop={Spacing.three}
+                accessibilityLabel="Reading settings"
+              >
+                <ThemedText type="smallBold">Aa</ThemedText>
+              </Pressable>
+            ) : null,
         }}
       />
 
@@ -78,6 +94,9 @@ export default function ReaderScreen() {
           absolutePath={state.absolutePath}
           initialPosition={state.book.lastPosition ?? undefined}
           theme={theme}
+          typography={typography}
+          pdfPaging={pdfPaging}
+          pdfFit={pdfFit}
           onPositionChange={persistPosition}
           onReady={() => setReady(true)}
         />
@@ -89,6 +108,14 @@ export default function ReaderScreen() {
         <View style={[styles.overlay, { backgroundColor: theme.background }]}>
           <ActivityIndicator color={theme.text} />
         </View>
+      ) : null}
+
+      {state.status === 'ready' ? (
+        <ReaderSettingsSheet
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+          format={state.book.format}
+        />
       ) : null}
     </View>
   );

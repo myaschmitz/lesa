@@ -1,5 +1,5 @@
 import { Reader, ReaderProvider, useReader, type Theme } from '@epubjs-react-native/core';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
+import { fontSizeToCss } from '@/theme/typography';
 
 import { useEpubFileSystem } from './epub-file-system';
 import { parseEpubPosition, serializeEpubPosition } from './epub-position';
-import type { ReaderTheme, ReaderViewProps } from './types';
+import type { ReaderTheme, ReaderTypography, ReaderViewProps } from './types';
 
 /**
  * EPUB engine implementation of the {@link ReaderView} contract, backed by
@@ -35,19 +36,32 @@ function EpubReaderInner({
   absolutePath,
   initialPosition,
   theme,
+  typography,
   onPositionChange,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
-  const { goToLocation } = useReader();
+  const { goToLocation, changeFontSize, changeFontFamily, changeTheme } = useReader();
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
-  const defaultTheme = useMemo(() => epubTheme(theme), [theme]);
+  const defaultTheme = useMemo(() => epubTheme(theme, typography), [theme, typography]);
 
   // Ignore location events until ready so the initial layout can't clobber a
   // saved CFI before the restore jump lands.
   const readyRef = useRef(false);
+
+  // Re-apply theme + typography live whenever they change. `defaultTheme` only
+  // seeds the initial render; an open book needs changeTheme/changeFont* to pick
+  // up new colours, line-height, family, or size.
+  useEffect(() => {
+    if (!readyRef.current) return;
+    changeTheme(defaultTheme);
+    if (typography) {
+      changeFontSize(fontSizeToCss(typography.fontSize));
+      changeFontFamily(typography.fontFamily);
+    }
+  }, [defaultTheme, typography, changeTheme, changeFontSize, changeFontFamily]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -62,6 +76,11 @@ function EpubReaderInner({
         defaultTheme={defaultTheme}
         onReady={() => {
           readyRef.current = true;
+          // Apply persisted typography once the book is laid out.
+          if (typography) {
+            changeFontSize(fontSizeToCss(typography.fontSize));
+            changeFontFamily(typography.fontFamily);
+          }
           // Re-anchor after the continuous layout has settled. `initialLocation`
           // jumps before sections finish measuring, which lands ~half a page off;
           // a second jump once ready snaps back to the exact saved CFI. Keep the
@@ -146,13 +165,15 @@ function ContentsModal({
 }
 
 /** Maps shared {@link ReaderTheme} tokens onto epub.js's CSS-selector theme. */
-function epubTheme(theme: ReaderTheme): Theme {
+function epubTheme(theme: ReaderTheme, typography?: ReaderTypography): Theme {
+  const lineHeight = typography ? String(typography.lineHeight) : undefined;
   return {
     body: {
       background: theme.background,
       color: theme.text,
+      ...(lineHeight ? { 'line-height': lineHeight } : {}),
     },
-    p: { color: theme.text },
+    p: { color: theme.text, ...(lineHeight ? { 'line-height': lineHeight } : {}) },
     a: { color: theme.text },
   };
 }

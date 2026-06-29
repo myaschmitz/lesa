@@ -3,9 +3,17 @@ import { useMemo, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
+import type { PdfFit } from '@/store/settings-store';
 
 import { parsePdfPosition, serializePdfPosition } from './pdf-position';
 import type { ReaderViewProps } from './types';
+
+export interface PdfReaderProps extends ReaderViewProps {
+  /** Page-snap vs free scroll. EPUB has no equivalent. */
+  paging?: boolean;
+  /** How the page scales to the viewport (PDF's only "zoom"). */
+  fit?: PdfFit;
+}
 
 /**
  * PDF engine implementation of the {@link ReaderView} contract, backed by
@@ -17,9 +25,11 @@ export function PdfReader({
   absolutePath,
   initialPosition,
   theme,
+  paging = false,
+  fit = 'width',
   onPositionChange,
   onReady,
-}: ReaderViewProps) {
+}: PdfReaderProps) {
   const initialPage = useMemo(() => parsePdfPosition(initialPosition)?.page, [initialPosition]);
 
   // Ignore page events until the document has loaded so the initial page-0 layout
@@ -31,7 +41,8 @@ export function PdfReader({
       style={[styles.container, { backgroundColor: theme.background }]}
       uri={absolutePath}
       initialPage={initialPage}
-      fitMode="width"
+      fitMode={fit}
+      pagingEnabled={paging}
       pageGap={Spacing.two}
       pageColorInverted={theme.isDark}
       onPageChanged={({ pageIndex }) => {
