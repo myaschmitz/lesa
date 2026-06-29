@@ -67,6 +67,11 @@ export interface ReaderViewProps {
   onPositionChange: (position: string) => void;
   /** Display-only progress for the page indicator; never used for persistence. */
   onProgress?: (progress: ReaderProgress) => void;
+  /**
+   * EPUB only: emits the book cover as a base64 data URL once available, so the
+   * library can persist it. Fixed-layout engines (PDF) never call this.
+   */
+  onCoverExtracted?: (dataUrl: string) => void;
   /** Called once the document has loaded and is ready to read. */
   onReady?: () => void;
 }

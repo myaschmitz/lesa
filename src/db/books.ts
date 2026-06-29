@@ -4,7 +4,7 @@ import { getDatabase } from './database';
 import type { Book, NewBook } from '@/types/book';
 
 const ALL_COLUMNS =
-  'id, title, author, format, relativePath, coverRelativePath, lastPosition, sizeBytes, sourceName, addedAt, lastOpenedAt';
+  'id, title, author, format, relativePath, coverRelativePath, lastPosition, sizeBytes, sourceName, addedAt, lastOpenedAt, progress';
 
 /** Inserts a new book, generating its id and `addedAt`, and returns the row. */
 export async function insertBook(input: NewBook): Promise<Book> {
@@ -21,11 +21,12 @@ export async function insertBook(input: NewBook): Promise<Book> {
     sourceName: input.sourceName,
     addedAt: Date.now(),
     lastOpenedAt: null,
+    progress: null,
   };
 
   await db.runAsync(
     `INSERT INTO books (${ALL_COLUMNS})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     book.id,
     book.title,
     book.author,
@@ -37,15 +38,18 @@ export async function insertBook(input: NewBook): Promise<Book> {
     book.sourceName,
     book.addedAt,
     book.lastOpenedAt,
+    book.progress,
   );
 
   return book;
 }
 
-/** All books, most recently added first. */
+/** All books, most recently read first (then most recently added). */
 export async function getAllBooks(): Promise<Book[]> {
   const db = await getDatabase();
-  return db.getAllAsync<Book>(`SELECT ${ALL_COLUMNS} FROM books ORDER BY addedAt DESC`);
+  return db.getAllAsync<Book>(
+    `SELECT ${ALL_COLUMNS} FROM books ORDER BY COALESCE(lastOpenedAt, addedAt) DESC`,
+  );
 }
 
 export async function getBookById(id: string): Promise<Book | null> {
@@ -76,4 +80,16 @@ export async function updateLastPosition(id: string, position: string | null): P
 export async function updateLastOpenedAt(id: string, timestamp: number): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('UPDATE books SET lastOpenedAt = ? WHERE id = ?', timestamp, id);
+}
+
+/** Records the relative path of a book's extracted cover image. */
+export async function updateCover(id: string, coverRelativePath: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE books SET coverRelativePath = ? WHERE id = ?', coverRelativePath, id);
+}
+
+/** Records display-only reading progress (0–1). Never the opaque position token. */
+export async function updateProgress(id: string, progress: number): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE books SET progress = ? WHERE id = ?', progress, id);
 }

@@ -1,5 +1,5 @@
 import { deleteBook, getAllBooks } from '@/db/books';
-import { bookFileExists } from '@/library/paths';
+import { bookFileExists, deleteCoverFile } from '@/library/paths';
 import type { Book } from '@/types/book';
 
 export interface ReconcileResult {
@@ -31,6 +31,7 @@ export async function reconcileCatalog(): Promise<ReconcileResult> {
   }
 
   for (const book of orphaned) {
+    deleteCoverFile(book.coverRelativePath);
     await deleteBook(book.id);
   }
 

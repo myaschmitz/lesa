@@ -39,10 +39,11 @@ function EpubReaderInner({
   typography,
   onPositionChange,
   onProgress,
+  onCoverExtracted,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
-  const { goToLocation, changeFontSize, changeFontFamily, changeTheme } = useReader();
+  const { goToLocation, changeFontSize, changeFontFamily, changeTheme, getMeta } = useReader();
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
@@ -56,6 +57,23 @@ function EpubReaderInner({
   const readyRef = useRef(false);
   // Latest known reading position, used to re-anchor after a reflow.
   const lastCfiRef = useRef<string | undefined>(initialCfi);
+  // The cover is delivered once via a `meta` message after the book parses
+  // (epub.js posts it asynchronously, after onReady), so emit it a single time.
+  const coverEmittedRef = useRef(false);
+
+  // Best-effort cover extraction. epub.js delivers the cover as a base64 data URL
+  // asynchronously (after onReady) via the reader context's metadata. `getMeta`'s
+  // identity changes when that metadata updates, so this effect re-runs and picks
+  // the cover up once. Surface it so the library can persist a thumbnail; the
+  // reader stays unaware of where covers are stored.
+  useEffect(() => {
+    if (coverEmittedRef.current || !onCoverExtracted) return;
+    const cover = getMeta()?.cover;
+    if (typeof cover === 'string' && cover.startsWith('data:')) {
+      coverEmittedRef.current = true;
+      onCoverExtracted(cover);
+    }
+  }, [getMeta, onCoverExtracted]);
 
   // Live theme/typography. A continuous-flow reflow scrolls to the top, so jump
   // back to the current location once it settles to kill the first-page flash.

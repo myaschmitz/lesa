@@ -98,12 +98,20 @@ screen. Applies to both PDF and EPUB via the existing `ReaderView` abstraction.
 - [x] Respect safe-area insets; theme overlays from theme tokens; smooth fade.
 - Branch: `immersive-reader-chrome`.
 
-## Phase 7 — Polish  `[ ]`
-- [ ] Cover extraction + thumbnails.
-- [ ] Sort by last-read; reading-progress indicator.
-- [ ] Empty states, delete/remove book, basic error handling.
-- [ ] Manual offline / reinstall test pass.
-- Branch: `polish`.
+## Phase 7 — Polish  `[x]`
+- [x] Cover extraction + thumbnails. **EPUB:** cover extracted from epub.js
+      metadata on first open, saved to `covers/<id>.jpg` (relative path in DB,
+      bytes on disk). **PDF:** `@kishannareshpal/expo-pdf` exposes no
+      render-to-image API, so PDFs keep the styled placeholder card (graceful
+      fallback) rather than pulling in another native engine this phase.
+- [x] Sort by last-read; reading-progress indicator. Library orders by
+      `lastOpenedAt` (falls back to `addedAt`); a thin progress bar on each card
+      shows PDF page-% / EPUB locator-% from a display-only `progress` column.
+- [x] Empty states, delete/remove book, basic error handling. Empty Library has
+      a clear call-to-action; delete removes file + cover + row; reconcile prunes
+      orphaned covers; store errors surface as a dismissible banner.
+- [x] Manual offline / reinstall test pass. Steps documented in the PR.
+- Branch: `phase7-polish`.
 
 ---
 

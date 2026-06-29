@@ -40,6 +40,8 @@ export default function ReaderScreen() {
   const loadBook = useLibraryStore((s) => s.loadBook);
   const markOpened = useLibraryStore((s) => s.markOpened);
   const saveReadingPosition = useLibraryStore((s) => s.saveReadingPosition);
+  const saveCover = useLibraryStore((s) => s.saveCover);
+  const saveProgress = useLibraryStore((s) => s.saveProgress);
 
   const [book, setBook] = useState<Book | null>(() => books.find((b) => b.id === id) ?? null);
   const [notFound, setNotFound] = useState(false);
@@ -71,6 +73,26 @@ export default function ReaderScreen() {
   const { debounced: persistPosition } = useDebouncedCallback((position: string) => {
     if (book) void saveReadingPosition(book.id, position);
   }, POSITION_SAVE_DEBOUNCE_MS);
+
+  const { debounced: persistProgress } = useDebouncedCallback((fraction: number) => {
+    if (book) void saveProgress(book.id, fraction);
+  }, POSITION_SAVE_DEBOUNCE_MS);
+
+  const handleProgress = useCallback(
+    (p: ReaderProgress) => {
+      setProgress(p);
+      const fraction = p.fraction ?? (p.page && p.pageCount ? p.page / p.pageCount : undefined);
+      if (typeof fraction === 'number') persistProgress(fraction);
+    },
+    [persistProgress],
+  );
+
+  const handleCover = useCallback(
+    (dataUrl: string) => {
+      if (book && !book.coverRelativePath) void saveCover(book.id, dataUrl);
+    },
+    [book, saveCover],
+  );
 
   // Auto-hide chrome after a short idle so the book fills the screen while
   // reading; showing it (toggle/settings) restarts the timer.
@@ -110,7 +132,8 @@ export default function ReaderScreen() {
             pdfPaging={pdfPaging}
             pdfFit={pdfFit}
             onPositionChange={persistPosition}
-            onProgress={setProgress}
+            onProgress={handleProgress}
+            onCoverExtracted={handleCover}
             onReady={() => setReady(true)}
           />
         </Pressable>
