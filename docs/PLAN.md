@@ -55,11 +55,11 @@ but the core problem is solved here.
 > survives that until an optional cloud-sync layer exists. Test reinstall-over,
 > not delete.
 
-## Phase 3 — PDF reader  `[ ]`
+## Phase 3 — PDF reader  `[x]`
 **Goal:** open a PDF, scroll smoothly, remember where you were.
-- [ ] Integrate the PDF engine behind the `ReaderView` interface.
-- [ ] Vertical scroll mode + optional page snapping.
-- [ ] Save/restore position (page + offset) per book.
+- [x] Integrate the PDF engine behind the `ReaderView` interface.
+- [x] Vertical scroll mode + optional page snapping.
+- [x] Save/restore position (page + offset) per book.
 - Branch: `pdf-reader`.
 
 ## Phase 4 — EPUB reader  `[ ]`

@@ -73,6 +73,33 @@ for an optional cloud-sync layer later — never bake assumptions that block it.
 - Run lint + typecheck before opening a PR (once tooling exists).
 - Update `docs/PLAN.md` checkboxes as phases complete.
 
+### Dependencies & the lockfile (READ before touching package.json)
+The project pins **Node 22 / npm 10** (see `.nvmrc` + `engines`), and that is
+what **EAS uses** — its "Install dependencies" phase runs `npm ci`. The pain we
+hit repeatedly: **npm 11+ rewrites `package-lock.json` differently than npm 10**
+— it prunes some platform-optional transitive deps (the `@emnapi/*` WASM-fallback
+packages pulled in by the ESLint resolver `unrs-resolver`). The result installs
+fine locally but makes EAS's `npm ci` fail with `Missing: @emnapi/core ... from
+lock file`. Worse, `eas build` can upload your *uncommitted* working-dir lockfile,
+so a single local `npm install` with npm 11 silently re-breaks the build.
+
+What protects us now (don't undo these):
+- **`@emnapi/core` and `@emnapi/runtime` are declared as direct `devDependencies`**
+  even though nothing in our code imports them. They are only there so that *no*
+  npm version can prune them from the lockfile — this makes the lock immune to the
+  npm 10 vs 11 churn above. Verified: after `npm install` with npm 11 the lock
+  still passes `npm ci` under Node 22 / npm 10. **Do not remove them.**
+- **`.github/workflows/ci.yml`** runs the exact EAS install (`npm ci` on the
+  `.nvmrc` Node) plus typecheck/lint on every push/PR, so a desynced lock is
+  caught in ~1 min instead of a 15-min EAS build.
+
+Rules:
+- To install after pulling, prefer **`npm ci`** — it installs the committed lock
+  exactly (and runs the `patch-package` postinstall) **without rewriting the lock**.
+- Only change the lock deliberately, with npm 10: `npm run lock:fix` (or
+  `npx npm@10.9.4 install <pkg>`). Then run **`npm run lock:check`** before the PR.
+- If your local lock got churned by npm 11, just `git checkout package-lock.json`.
+
 ## Definition of done for a feature
 - Type-checks and lints clean.
 - Reading position persists and restores correctly.

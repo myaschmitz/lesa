@@ -1,0 +1,35 @@
+name: CI
+
+# Catches the failures that otherwise only surface in a ~15-minute EAS build:
+# a package-lock.json that is out of sync (the recurring `npm ci` "Missing ...
+# from lock file" error), plus type and lint regressions. This job mirrors the
+# EAS "Install dependencies" phase exactly by pinning Node via .nvmrc (which
+# selects the same npm `npm ci` runs there).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node (same version EAS uses, from .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Identical to EAS's install step. Fails fast if package-lock.json drifts
+      # out of sync with package.json (e.g. a lockfile written by a newer npm
+      # that pruned platform-optional transitive deps).
+      - name: Install dependencies (npm ci)
+        run: npm ci --include=dev
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint

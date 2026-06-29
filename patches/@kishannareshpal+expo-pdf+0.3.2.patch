@@ -1,0 +1,145 @@
+diff --git a/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.d.ts b/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.d.ts
+index 43d4a70..49ee686 100644
+--- a/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.d.ts
++++ b/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.d.ts
+@@ -59,6 +59,12 @@ type BaseProps = ViewProps & {
+      * Defaults to false.
+      */
+     pageColorInverted?: boolean;
++    /**
++     * Zero-based page index to display once the document has loaded. Applied at
++     * most once, so it restores a saved reading position without fighting the
++     * user's scrolling. (Lesa patch: added via patch-package.)
++     */
++    initialPage?: number;
+ };
+ export type PdfViewProps = BaseProps & {
+     onLoadComplete?: (params: OnLoadCompleteEventPayload) => void;
+diff --git a/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.js b/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.js
+index 28d2b99..347654c 100644
+--- a/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.js
++++ b/node_modules/@kishannareshpal/expo-pdf/build/pdf-view.js
+@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
+ import { forwardNativeEventTo } from './utils';
+ const NativePdfView = requireNativeView('KJExpoPdf');
+ export const PdfView = ({ style, onLoadComplete, onError, onPageChanged, ...props }) => {
+-    return (<NativePdfView style={[styles.container, style]} uri={props.uri} doubleTapToZoom={props.doubleTapToZoom} horizontal={props.horizontal} pageGap={props.pageGap} pagingEnabled={props.pagingEnabled} password={props.password} contentPadding={props.contentPadding} fitMode={props.fitMode} autoScale={props.autoScale} pageColorInverted={props.pageColorInverted} onLoadComplete={forwardNativeEventTo(onLoadComplete)} onPageChanged={forwardNativeEventTo(onPageChanged)} onError={forwardNativeEventTo(onError)}/>);
++    return (<NativePdfView style={[styles.container, style]} uri={props.uri} doubleTapToZoom={props.doubleTapToZoom} horizontal={props.horizontal} pageGap={props.pageGap} pagingEnabled={props.pagingEnabled} password={props.password} contentPadding={props.contentPadding} fitMode={props.fitMode} autoScale={props.autoScale} pageColorInverted={props.pageColorInverted} initialPage={props.initialPage} onLoadComplete={forwardNativeEventTo(onLoadComplete)} onPageChanged={forwardNativeEventTo(onPageChanged)} onError={forwardNativeEventTo(onError)}/>);
+ };
+ const styles = StyleSheet.create({
+     container: {
+diff --git a/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfModule.swift b/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfModule.swift
+index 80acd41..35a8009 100644
+--- a/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfModule.swift
++++ b/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfModule.swift
+@@ -54,6 +54,10 @@ public class KJExpoPdfModule: Module {
+       Prop("autoScale") { (view: KJExpoPdfView, enabled: Bool?) in
+         view.setAutoScaleEnabled(enabled)
+       }
++
++      Prop("initialPage") { (view: KJExpoPdfView, page: Int?) in
++        view.setInitialPage(page)
++      }
+     }
+   }
+ }
+diff --git a/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfView.swift b/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfView.swift
+index 0012792..633b901 100644
+--- a/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfView.swift
++++ b/node_modules/@kishannareshpal/expo-pdf/ios/KJExpoPdfView.swift
+@@ -42,6 +42,12 @@ class KJExpoPdfView: ExpoView {
+   private var isAutoScaleEnabled: Bool = DEFAULT_AUTO_SCALE_ENABLED
+   private var isPageColorInverted: Bool = DEFAULT_PAGE_COLOR_INVERTED_ENABLED
+ 
++  // Page to restore to once the document has loaded and the view has laid out.
++  // Applied at most once (see applyInitialPageIfNeeded) so it never fights the
++  // user's own scrolling.
++  private var initialPage: Int? = nil
++  private var hasAppliedInitialPage: Bool = false
++
+   required init(appContext: AppContext? = nil) {
+     super.init(appContext: appContext)
+ 
+@@ -86,6 +92,10 @@ class KJExpoPdfView: ExpoView {
+     }
+ 
+     self.isFirstLayoutComplete = true
++
++    // The restore jump needs a valid layout, so attempt it once the first layout
++    // has completed (the document may already be loaded by now).
++    self.applyInitialPageIfNeeded()
+   }
+ 
+   deinit {
+@@ -196,6 +206,35 @@ class KJExpoPdfView: ExpoView {
+     }
+   }
+ 
++  func setInitialPage(_ page: Int?) {
++    self.initialPage = page
++
++    // The document and/or layout may already be ready (e.g. prop set after load),
++    // so attempt the restore now; it is a no-op until everything is in place.
++    self.applyInitialPageIfNeeded()
++  }
++
++  // Restores the saved reading page exactly once, after both the document is
++  // loaded and the view has laid out. Index is clamped to the document's range.
++  private func applyInitialPageIfNeeded() {
++    guard
++      !self.hasAppliedInitialPage,
++      self.isFirstLayoutComplete,
++      let page = self.initialPage,
++      let document = self.pdfView.document,
++      document.pageCount > 0
++    else { return }
++
++    let clampedIndex = max(0, min(page, document.pageCount - 1))
++    guard let pdfPage = document.page(at: clampedIndex) else { return }
++
++    self.hasAppliedInitialPage = true
++    // Defer so the jump runs after the first-layout auto-scale settles.
++    DispatchQueue.main.async {
++      self.pdfView.go(to: pdfPage)
++    }
++  }
++
+   @objc private func handlePageChange() {
+     guard
+       let page = pdfView.currentPage,
+@@ -217,6 +256,9 @@ class KJExpoPdfView: ExpoView {
+       self.onLoadComplete([
+         "pageCount": document.pageCount
+       ])
++
++      // The document is ready; restore the saved page if one is pending.
++      self.applyInitialPageIfNeeded()
+     }
+   }
+ 
+diff --git a/node_modules/@kishannareshpal/expo-pdf/src/pdf-view.tsx b/node_modules/@kishannareshpal/expo-pdf/src/pdf-view.tsx
+index e158e4f..8ef4628 100644
+--- a/node_modules/@kishannareshpal/expo-pdf/src/pdf-view.tsx
++++ b/node_modules/@kishannareshpal/expo-pdf/src/pdf-view.tsx
+@@ -72,6 +72,13 @@ type BaseProps = ViewProps & {
+    * Defaults to false.
+    */
+   pageColorInverted?: boolean;
++
++  /**
++   * Zero-based page index to display once the document has loaded. Applied at
++   * most once, so it restores a saved reading position without fighting the
++   * user's scrolling. (Lesa patch: added via patch-package.)
++   */
++  initialPage?: number;
+ }
+ 
+ type NativePdfViewProps = BaseProps & {
+@@ -130,6 +137,7 @@ export const PdfView = ({
+       fitMode={props.fitMode}
+       autoScale={props.autoScale}
+       pageColorInverted={props.pageColorInverted}
++      initialPage={props.initialPage}
+       onLoadComplete={forwardNativeEventTo(onLoadComplete)}
+       onPageChanged={forwardNativeEventTo(onPageChanged)}
+       onError={forwardNativeEventTo(onError)}

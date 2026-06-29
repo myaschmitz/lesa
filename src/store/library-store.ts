@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import { deleteBook, getAllBooks } from '@/db/books';
+import {
+  deleteBook,
+  getAllBooks,
+  getBookById,
+  updateLastOpenedAt,
+  updateLastPosition,
+} from '@/db/books';
 import { confirmDuplicate } from '@/library/duplicate-prompt';
 import {
   findDuplicateFor,
@@ -30,6 +36,12 @@ interface LibraryState {
   importUri: (uri: string) => Promise<number>;
   /** Remove a book: delete its file, then its catalog row. */
   removeBook: (id: string) => Promise<void>;
+  /** Resolve a single book by id, preferring the in-memory catalog. */
+  loadBook: (id: string) => Promise<Book | null>;
+  /** Record that a book was opened now (for last-read ordering). */
+  markOpened: (id: string) => Promise<void>;
+  /** Persist a reader's opaque position token for a book. */
+  saveReadingPosition: (id: string, position: string) => Promise<void>;
 }
 
 /** Imports candidates, prompting on likely duplicates. Returns count imported. */
@@ -112,6 +124,40 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (book) deleteBookFile(book.relativePath);
       await deleteBook(id);
       set({ books: get().books.filter((b) => b.id !== id) });
+    } catch (error) {
+      set({ error: errorMessage(error) });
+    }
+  },
+
+  loadBook: async (id: string) => {
+    const cached = get().books.find((b) => b.id === id);
+    if (cached) return cached;
+    try {
+      return await getBookById(id);
+    } catch (error) {
+      set({ error: errorMessage(error) });
+      return null;
+    }
+  },
+
+  markOpened: async (id: string) => {
+    const timestamp = Date.now();
+    try {
+      await updateLastOpenedAt(id, timestamp);
+      set({
+        books: get().books.map((b) => (b.id === id ? { ...b, lastOpenedAt: timestamp } : b)),
+      });
+    } catch (error) {
+      set({ error: errorMessage(error) });
+    }
+  },
+
+  saveReadingPosition: async (id: string, position: string) => {
+    try {
+      await updateLastPosition(id, position);
+      set({
+        books: get().books.map((b) => (b.id === id ? { ...b, lastPosition: position } : b)),
+      });
     } catch (error) {
       set({ error: errorMessage(error) });
     }

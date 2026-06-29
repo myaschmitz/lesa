@@ -38,10 +38,13 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.1",
+    "@emnapi/runtime": "^1.11.1",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
     "eslint-config-prettier": "^10.1.8",
+    "patch-package": "^8.0.1",
     "prettier": "^3.9.1",
     "typescript": "~6.0.3"
   },
@@ -54,7 +57,10 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lock:fix": "npx -y npm@10.9.4 install --package-lock-only",
+    "lock:check": "npx -y npm@10.9.4 ci --include=dev --dry-run",
+    "postinstall": "patch-package"
   },
   "private": true
 }
