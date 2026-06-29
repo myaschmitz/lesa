@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { ReaderChrome } from '@/components/reader-chrome';
 import { ReaderSettingsSheet } from '@/components/reader-settings-sheet';
@@ -108,6 +109,18 @@ export default function ReaderScreen() {
     setSettingsVisible(true);
   }, []);
 
+  // A deliberate tap toggles the chrome, but a scroll must not. Gesture-handler's
+  // Tap fails once the finger travels past maxDistance, so swipes/scrolls fall
+  // through to the reader instead of flashing the controls.
+  const tapGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .maxDistance(10)
+        .onEnd(() => toggleChrome())
+        .runOnJS(true),
+    [toggleChrome],
+  );
+
   const state: LoadState = useMemo(() => {
     if (notFound) return { status: 'missing' };
     if (!book) return { status: 'loading' };
@@ -122,21 +135,24 @@ export default function ReaderScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {state.status === 'ready' ? (
-        <Pressable style={styles.fill} onPress={toggleChrome}>
-          <ReaderView
-            format={state.book.format}
-            absolutePath={state.absolutePath}
-            initialPosition={state.book.lastPosition ?? undefined}
-            theme={theme}
-            typography={typography}
-            pdfPaging={pdfPaging}
-            pdfFit={pdfFit}
-            onPositionChange={persistPosition}
-            onProgress={handleProgress}
-            onCoverExtracted={handleCover}
-            onReady={() => setReady(true)}
-          />
-        </Pressable>
+        <GestureDetector gesture={tapGesture}>
+          <View style={styles.fill}>
+            <ReaderView
+              format={state.book.format}
+              absolutePath={state.absolutePath}
+              initialPosition={state.book.lastPosition ?? undefined}
+              theme={theme}
+              typography={typography}
+              controlsVisible={chromeVisible}
+              pdfPaging={pdfPaging}
+              pdfFit={pdfFit}
+              onPositionChange={persistPosition}
+              onProgress={handleProgress}
+              onCoverExtracted={handleCover}
+              onReady={() => setReady(true)}
+            />
+          </View>
+        </GestureDetector>
       ) : null}
 
       {state.status === 'missing' ? <MissingState /> : null}

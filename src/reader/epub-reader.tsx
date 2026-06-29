@@ -1,6 +1,7 @@
 import { Reader, ReaderProvider, useReader, type Theme } from '@epubjs-react-native/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -37,6 +38,7 @@ function EpubReaderInner({
   initialPosition,
   theme,
   typography,
+  controlsVisible = true,
   onPositionChange,
   onProgress,
   onCoverExtracted,
@@ -151,21 +153,40 @@ function EpubReaderInner({
         }}
       />
 
-      <ContentsButton theme={theme} onPress={() => setTocVisible(true)} />
+      <ContentsButton theme={theme} visible={controlsVisible} onPress={() => setTocVisible(true)} />
       <ContentsModal theme={theme} visible={tocVisible} onClose={() => setTocVisible(false)} />
     </View>
   );
 }
 
-function ContentsButton({ theme, onPress }: { theme: ReaderTheme; onPress: () => void }) {
+function ContentsButton({
+  theme,
+  visible,
+  onPress,
+}: {
+  theme: ReaderTheme;
+  visible: boolean;
+  onPress: () => void;
+}) {
+  const [opacity] = useState(() => new Animated.Value(visible ? 1 : 0));
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: visible ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, opacity]);
+
   return (
-    <Pressable
-      accessibilityLabel="Chapters"
-      onPress={onPress}
-      style={[styles.tocButton, { backgroundColor: theme.backgroundElement }]}
+    <Animated.View
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={[styles.tocButton, { backgroundColor: theme.backgroundElement, opacity }]}
     >
-      <Text style={{ color: theme.text }}>Chapters</Text>
-    </Pressable>
+      <Pressable accessibilityLabel="Chapters" onPress={onPress}>
+        <Text style={{ color: theme.text }}>Chapters</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 

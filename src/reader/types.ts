@@ -63,6 +63,12 @@ export interface ReaderViewProps {
   theme: ReaderTheme;
   /** EPUB only; ignored by fixed-layout engines such as PDF. */
   typography?: ReaderTypography;
+  /**
+   * Whether the immersive chrome is currently shown. Engines mirror it for any
+   * in-content controls (e.g. the EPUB Chapters button) so everything hides
+   * together for a clean reading view. Defaults to shown.
+   */
+  controlsVisible?: boolean;
   /** Emits an opaque per-format position token as the reading position changes. */
   onPositionChange: (position: string) => void;
   /** Display-only progress for the page indicator; never used for persistence. */
