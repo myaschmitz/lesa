@@ -66,6 +66,7 @@ export function ReaderSettingsSheet({ visible, onClose, format }: Props) {
           <ThemeSection tokens={tokens} />
           <TypographySection tokens={tokens} disabled={isPdf} />
           {isPdf ? <PdfSection tokens={tokens} /> : null}
+          <ResetButton tokens={tokens} />
         </ScrollView>
       </View>
     </Modal>
@@ -178,6 +179,19 @@ function PdfSection({ tokens }: { tokens: ThemeTokens }) {
         onSelect={(v) => setPdfFit(v as PdfFit)}
       />
     </Section>
+  );
+}
+
+function ResetButton({ tokens }: { tokens: ThemeTokens }) {
+  const resetAll = useSettingsStore((s) => s.resetAll);
+  return (
+    <Pressable
+      onPress={resetAll}
+      accessibilityLabel="Reset to defaults"
+      style={[styles.reset, { borderColor: tokens.backgroundSelected }]}
+    >
+      <Text style={[styles.resetText, { color: tokens.textSecondary }]}>Reset to defaults</Text>
+    </Pressable>
   );
 }
 
@@ -353,4 +367,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepBtnText: { fontSize: 22, fontWeight: '600' },
+  reset: {
+    marginTop: Spacing.two,
+    paddingVertical: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
+  resetText: { fontSize: 15, fontWeight: '600' },
 });

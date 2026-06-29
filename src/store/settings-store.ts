@@ -33,19 +33,25 @@ interface SettingsState {
   setLineHeight: (value: number) => void;
   setPdfPaging: (paging: boolean) => void;
   setPdfFit: (fit: PdfFit) => void;
+  /** Restore all reader prefs to their defaults (theme, typography, PDF). */
+  resetAll: () => void;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const DEFAULTS = {
+  themeName: 'system' as ReaderThemeName,
+  fontFamily: DEFAULT_TYPOGRAPHY.fontFamily,
+  fontSize: DEFAULT_TYPOGRAPHY.fontSize,
+  lineHeight: DEFAULT_TYPOGRAPHY.lineHeight,
+  pdfPaging: false,
+  pdfFit: 'width' as PdfFit,
+};
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      themeName: 'system',
-      fontFamily: DEFAULT_TYPOGRAPHY.fontFamily,
-      fontSize: DEFAULT_TYPOGRAPHY.fontSize,
-      lineHeight: DEFAULT_TYPOGRAPHY.lineHeight,
-      pdfPaging: false,
-      pdfFit: 'width',
+      ...DEFAULTS,
 
       setThemeName: (themeName) => set({ themeName }),
       setFontFamily: (fontFamily) => set({ fontFamily }),
@@ -53,6 +59,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLineHeight: (value) => set({ lineHeight: clamp(value, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX) }),
       setPdfPaging: (pdfPaging) => set({ pdfPaging }),
       setPdfFit: (pdfFit) => set({ pdfFit }),
+      resetAll: () => set({ ...DEFAULTS }),
     }),
     {
       name: 'reader-settings',
