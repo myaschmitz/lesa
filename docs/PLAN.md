@@ -71,14 +71,14 @@ book** — if it's laggy, we evaluate the native Readium path.
 - [ ] Scroll-smoothness check → decide keep epub.js vs switch to Readium.
 - Branch: `epub-reader`.
 
-## Phase 5 — Reader settings  `[ ]`
+## Phase 5 — Reader settings  `[x]`
 **Goal:** the settings you care about, done cleanly (the part other apps get
 wrong). Themes first — cheap and high impact.
-- [ ] Theme tokens: light, dark, white, black, sepia (shared by chrome + reader).
-- [ ] EPUB typography: font family, font size, line height.
-- [ ] PDF: scroll/page toggle, zoom, light/dark tint. **Gray out typography
+- [x] Theme tokens: light, dark, white, black, sepia (shared by chrome + reader).
+- [x] EPUB typography: font family, font size, line height.
+- [x] PDF: scroll/page toggle, zoom, light/dark tint. **Gray out typography
       controls for PDFs** (fixed-layout — they don't apply).
-- [ ] Persist settings; apply consistently across both engines.
+- [x] Persist settings; apply consistently across both engines.
 - Branch: `reader-settings`.
 
 ## Phase 6 — Polish  `[ ]`

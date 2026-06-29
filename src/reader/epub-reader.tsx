@@ -1,5 +1,5 @@
 import { Reader, ReaderProvider, useReader, type Theme } from '@epubjs-react-native/core';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
+import { fontSizeToCss } from '@/theme/typography';
 
 import { useEpubFileSystem } from './epub-file-system';
 import { parseEpubPosition, serializeEpubPosition } from './epub-position';
-import type { ReaderTheme, ReaderViewProps } from './types';
+import type { ReaderTheme, ReaderTypography, ReaderViewProps } from './types';
 
 /**
  * EPUB engine implementation of the {@link ReaderView} contract, backed by
@@ -35,19 +36,51 @@ function EpubReaderInner({
   absolutePath,
   initialPosition,
   theme,
+  typography,
   onPositionChange,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
-  const { goToLocation } = useReader();
+  const { goToLocation, changeFontSize, changeFontFamily, changeTheme } = useReader();
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
-  const defaultTheme = useMemo(() => epubTheme(theme), [theme]);
+  // Frozen at mount: epub.js re-renders the WebView (and scrolls to the top) when
+  // `defaultTheme` changes, so it only seeds the first paint. Live updates go
+  // through changeTheme/changeFont* below.
+  const [initialTheme] = useState(() => epubTheme(theme, typography));
 
   // Ignore location events until ready so the initial layout can't clobber a
   // saved CFI before the restore jump lands.
   const readyRef = useRef(false);
+  // Latest known reading position, used to re-anchor after a reflow.
+  const lastCfiRef = useRef<string | undefined>(initialCfi);
+
+  // Live theme/typography. A continuous-flow reflow scrolls to the top, so jump
+  // back to the current location once it settles to kill the first-page flash.
+  useEffect(() => {
+    if (!readyRef.current) return;
+    changeTheme(epubTheme(theme, typography));
+    if (typography) {
+      changeFontSize(fontSizeToCss(typography.fontSize));
+      changeFontFamily(typography.fontFamily);
+    }
+    const cfi = lastCfiRef.current;
+    if (cfi) {
+      const t = setTimeout(() => goToLocation(cfi), 80);
+      return () => clearTimeout(t);
+    }
+  }, [
+    theme,
+    typography?.fontFamily,
+    typography?.fontSize,
+    typography?.lineHeight,
+    changeTheme,
+    changeFontSize,
+    changeFontFamily,
+    goToLocation,
+    typography,
+  ]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -59,9 +92,14 @@ function EpubReaderInner({
         flow="scrolled-continuous"
         manager="continuous"
         initialLocation={initialCfi}
-        defaultTheme={defaultTheme}
+        defaultTheme={initialTheme}
         onReady={() => {
           readyRef.current = true;
+          // Apply persisted typography once the book is laid out.
+          if (typography) {
+            changeFontSize(fontSizeToCss(typography.fontSize));
+            changeFontFamily(typography.fontFamily);
+          }
           // Re-anchor after the continuous layout has settled. `initialLocation`
           // jumps before sections finish measuring, which lands ~half a page off;
           // a second jump once ready snaps back to the exact saved CFI. Keep the
@@ -79,7 +117,10 @@ function EpubReaderInner({
         onLocationChange={(_total, location) => {
           if (!readyRef.current) return;
           const cfi = location?.start?.cfi;
-          if (cfi) onPositionChange(serializeEpubPosition({ cfi }));
+          if (cfi) {
+            lastCfiRef.current = cfi;
+            onPositionChange(serializeEpubPosition({ cfi }));
+          }
         }}
         onDisplayError={(message) => {
           console.warn(`[EpubReader] failed to render EPUB: ${message}`);
@@ -146,13 +187,15 @@ function ContentsModal({
 }
 
 /** Maps shared {@link ReaderTheme} tokens onto epub.js's CSS-selector theme. */
-function epubTheme(theme: ReaderTheme): Theme {
+function epubTheme(theme: ReaderTheme, typography?: ReaderTypography): Theme {
+  const lineHeight = typography ? String(typography.lineHeight) : undefined;
   return {
     body: {
       background: theme.background,
       color: theme.text,
+      ...(lineHeight ? { 'line-height': lineHeight } : {}),
     },
-    p: { color: theme.text },
+    p: { color: theme.text, ...(lineHeight ? { 'line-height': lineHeight } : {}) },
     a: { color: theme.text },
   };
 }
