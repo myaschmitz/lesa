@@ -69,6 +69,13 @@ export interface ReaderViewProps {
    * together for a clean reading view. Defaults to shown.
    */
   controlsVisible?: boolean;
+  /**
+   * A deliberate single tap on the content (not a scroll or swipe). Each engine
+   * detects this with its own gesture recognizer — epub.js distinguishes taps
+   * from scrolls inside its WebView, PDFKit via a parent tap recogniser — so the
+   * screen can toggle the immersive chrome without a swipe ever flashing it.
+   */
+  onTap?: () => void;
   /** Emits an opaque per-format position token as the reading position changes. */
   onPositionChange: (position: string) => void;
   /** Display-only progress for the page indicator; never used for persistence. */

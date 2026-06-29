@@ -42,6 +42,7 @@ function EpubReaderInner({
   onPositionChange,
   onProgress,
   onCoverExtracted,
+  onTap,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
@@ -114,6 +115,7 @@ function EpubReaderInner({
         manager="continuous"
         initialLocation={initialCfi}
         defaultTheme={initialTheme}
+        onSingleTap={onTap}
         onReady={() => {
           readyRef.current = true;
           // Apply persisted typography once the book is laid out.
