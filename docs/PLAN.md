@@ -62,12 +62,12 @@ but the core problem is solved here.
 - [x] Save/restore position (page + offset) per book.
 - Branch: `pdf-reader`.
 
-## Phase 4 — EPUB reader  `[ ]`
+## Phase 4 — EPUB reader  `[x]`
 **Goal:** same interface, EPUB engine. **Validate scroll feel early with a long
 book** — if it's laggy, we evaluate the native Readium path.
-- [ ] Integrate epub.js (WebView) behind `ReaderView`.
-- [ ] Scroll-first flow; chapter navigation / table of contents.
-- [ ] Save/restore position (locator/CFI) per book.
+- [x] Integrate epub.js (WebView) behind `ReaderView`.
+- [x] Scroll-first flow; chapter navigation / table of contents.
+- [x] Save/restore position (locator/CFI) per book.
 - [ ] Scroll-smoothness check → decide keep epub.js vs switch to Readium.
 - Branch: `epub-reader`.
 
