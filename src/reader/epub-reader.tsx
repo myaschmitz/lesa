@@ -130,10 +130,10 @@ function ContentsModal({
               key={section.id}
               style={styles.tocRow}
               onPress={() => {
+                // Jump while the WebView is still mounted, then close. Closing
+                // first and jumping after the slide-out can drop the call.
+                goToLocation(section.href);
                 onClose();
-                // Jump after the modal slide-out finishes; calling goToLocation
-                // while the WebView is covered can be dropped.
-                setTimeout(() => goToLocation(section.href), 350);
               }}
             >
               <Text style={{ color: theme.text }}>{section.label.trim() || 'Untitled'}</Text>
