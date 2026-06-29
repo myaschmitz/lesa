@@ -81,7 +81,24 @@ wrong). Themes first — cheap and high impact.
 - [x] Persist settings; apply consistently across both engines.
 - Branch: `reader-settings`.
 
-## Phase 6 — Polish  `[ ]`
+## Phase 6 — Immersive reader chrome  `[ ]`
+**Goal:** a distraction-free, Apple Books-style reading screen. Replace the solid
+top bar with minimal, floating, auto-hiding controls so the book fills the
+screen. Applies to both PDF and EPUB via the existing `ReaderView` abstraction.
+- [ ] Hide the navigation/top bar; book content goes edge-to-edge.
+- [ ] **Tap center** to toggle chrome (overlays fade in/out); chrome auto-hides
+      after a short idle while reading.
+- [ ] **Title bubble** top-center: just the title (no clutter), solid pill
+      background so it stays legible over any page.
+- [ ] **Close (X)** top-right in a solid circle → back to Library.
+- [ ] **Settings** bottom-right: circular FAB with an icon → opens the existing
+      reader-settings sheet.
+- [ ] **Page indicator** bottom-center: "page X of Y" (PDF: real pages; EPUB:
+      best-effort from locator/progress).
+- [ ] Respect safe-area insets; theme overlays from theme tokens; smooth fade.
+- Branch: `immersive-reader-chrome`.
+
+## Phase 7 — Polish  `[ ]`
 - [ ] Cover extraction + thumbnails.
 - [ ] Sort by last-read; reading-progress indicator.
 - [ ] Empty states, delete/remove book, basic error handling.
