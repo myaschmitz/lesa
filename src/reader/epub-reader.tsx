@@ -64,9 +64,17 @@ function EpubReaderInner({
           readyRef.current = true;
           // Re-anchor after the continuous layout has settled. `initialLocation`
           // jumps before sections finish measuring, which lands ~half a page off;
-          // a second jump once ready snaps back to the exact saved CFI.
-          if (initialCfi) setTimeout(() => goToLocation(initialCfi), 250);
-          onReady?.();
+          // a second jump once ready snaps back to the exact saved CFI. Keep the
+          // loading overlay up (delay onReady) until the jump lands so the user
+          // doesn't see the cover flash past.
+          if (initialCfi) {
+            setTimeout(() => {
+              goToLocation(initialCfi);
+              setTimeout(() => onReady?.(), 150);
+            }, 250);
+          } else {
+            onReady?.();
+          }
         }}
         onLocationChange={(_total, location) => {
           if (!readyRef.current) return;
