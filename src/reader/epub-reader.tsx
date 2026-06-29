@@ -45,23 +45,42 @@ function EpubReaderInner({
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
-  const defaultTheme = useMemo(() => epubTheme(theme, typography), [theme, typography]);
+  // Frozen at mount: epub.js re-renders the WebView (and scrolls to the top) when
+  // `defaultTheme` changes, so it only seeds the first paint. Live updates go
+  // through changeTheme/changeFont* below.
+  const [initialTheme] = useState(() => epubTheme(theme, typography));
 
   // Ignore location events until ready so the initial layout can't clobber a
   // saved CFI before the restore jump lands.
   const readyRef = useRef(false);
+  // Latest known reading position, used to re-anchor after a reflow.
+  const lastCfiRef = useRef<string | undefined>(initialCfi);
 
-  // Re-apply theme + typography live whenever they change. `defaultTheme` only
-  // seeds the initial render; an open book needs changeTheme/changeFont* to pick
-  // up new colours, line-height, family, or size.
+  // Live theme/typography. A continuous-flow reflow scrolls to the top, so jump
+  // back to the current location once it settles to kill the first-page flash.
   useEffect(() => {
     if (!readyRef.current) return;
-    changeTheme(defaultTheme);
+    changeTheme(epubTheme(theme, typography));
     if (typography) {
       changeFontSize(fontSizeToCss(typography.fontSize));
       changeFontFamily(typography.fontFamily);
     }
-  }, [defaultTheme, typography, changeTheme, changeFontSize, changeFontFamily]);
+    const cfi = lastCfiRef.current;
+    if (cfi) {
+      const t = setTimeout(() => goToLocation(cfi), 80);
+      return () => clearTimeout(t);
+    }
+  }, [
+    theme,
+    typography?.fontFamily,
+    typography?.fontSize,
+    typography?.lineHeight,
+    changeTheme,
+    changeFontSize,
+    changeFontFamily,
+    goToLocation,
+    typography,
+  ]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -73,7 +92,7 @@ function EpubReaderInner({
         flow="scrolled-continuous"
         manager="continuous"
         initialLocation={initialCfi}
-        defaultTheme={defaultTheme}
+        defaultTheme={initialTheme}
         onReady={() => {
           readyRef.current = true;
           // Apply persisted typography once the book is laid out.
@@ -98,7 +117,10 @@ function EpubReaderInner({
         onLocationChange={(_total, location) => {
           if (!readyRef.current) return;
           const cfi = location?.start?.cfi;
-          if (cfi) onPositionChange(serializeEpubPosition({ cfi }));
+          if (cfi) {
+            lastCfiRef.current = cfi;
+            onPositionChange(serializeEpubPosition({ cfi }));
+          }
         }}
         onDisplayError={(message) => {
           console.warn(`[EpubReader] failed to render EPUB: ${message}`);
