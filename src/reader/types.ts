@@ -15,6 +15,8 @@
 export interface ReaderTheme {
   /** Page / canvas background colour. */
   background: string;
+  /** Solid fill for floating controls (pills/buttons) so they stay legible. */
+  backgroundElement: string;
   /** Foreground colour for reader chrome (loading states, messages). */
   text: string;
   /** Whether this is a dark theme; engines use it to pick a matching tint. */

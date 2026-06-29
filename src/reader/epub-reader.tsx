@@ -144,7 +144,7 @@ function ContentsButton({ theme, onPress }: { theme: ReaderTheme; onPress: () =>
     <Pressable
       accessibilityLabel="Chapters"
       onPress={onPress}
-      style={[styles.tocButton, { borderColor: theme.text }]}
+      style={[styles.tocButton, { backgroundColor: theme.backgroundElement }]}
     >
       <Text style={{ color: theme.text }}>Chapters</Text>
     </Pressable>
@@ -214,7 +214,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: Spacing.four,
     left: Spacing.four,
-    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
