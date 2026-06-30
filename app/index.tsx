@@ -19,8 +19,10 @@ export default function LibraryScreen() {
   const books = useLibraryStore((s) => s.books);
   const status = useLibraryStore((s) => s.status);
   const importing = useLibraryStore((s) => s.importing);
+  const error = useLibraryStore((s) => s.error);
   const importFromPicker = useLibraryStore((s) => s.importFromPicker);
   const removeBook = useLibraryStore((s) => s.removeBook);
+  const clearError = useLibraryStore((s) => s.clearError);
 
   const isInitialLoading = status === 'loading' && books.length === 0;
 
@@ -53,6 +55,7 @@ export default function LibraryScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        {error ? <ErrorBanner message={error} onDismiss={clearError} /> : null}
         {isInitialLoading ? (
           <View style={styles.centered}>
             <ActivityIndicator />
@@ -98,6 +101,21 @@ function ImportButton({
           <ThemedText type="smallBold">+ Import</ThemedText>
         )}
       </ThemedView>
+    </Pressable>
+  );
+}
+
+function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <Pressable onPress={onDismiss} accessibilityLabel="Dismiss error">
+      <View style={styles.errorBanner}>
+        <ThemedText type="small" style={styles.errorText} numberOfLines={2}>
+          {message}
+        </ThemedText>
+        <ThemedText type="small" style={styles.errorDismiss}>
+          Dismiss
+        </ThemedText>
+      </View>
     </Pressable>
   );
 }
@@ -171,5 +189,25 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
     borderRadius: Spacing.five,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.two,
+    backgroundColor: '#E5484D',
+  },
+  errorText: {
+    flex: 1,
+    color: '#FFFFFF',
+  },
+  errorDismiss: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

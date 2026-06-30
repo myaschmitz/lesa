@@ -30,6 +30,8 @@ export interface Book {
   addedAt: number;
   /** Epoch milliseconds when the book was last opened. Null until first open. */
   lastOpenedAt: number | null;
+  /** Display-only reading progress, 0–1. Null until a reader reports one. Never the opaque position token. */
+  progress: number | null;
 }
 
 /** Fields required to insert a new book; the rest are defaulted on import. */

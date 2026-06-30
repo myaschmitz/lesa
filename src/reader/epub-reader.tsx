@@ -1,6 +1,7 @@
 import { Reader, ReaderProvider, useReader, type Theme } from '@epubjs-react-native/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -16,6 +17,64 @@ import { fontSizeToCss } from '@/theme/typography';
 import { useEpubFileSystem } from './epub-file-system';
 import { parseEpubPosition, serializeEpubPosition } from './epub-position';
 import type { ReaderTheme, ReaderTypography, ReaderViewProps } from './types';
+
+/** Message type posted by the injected tap detector below. */
+const EPUB_TAP_MESSAGE = 'lesaEpubTap';
+
+/**
+ * Detects a deliberate tap *inside* the epub.js iframes and reports it back to
+ * React Native. The library's own `onSingleTap` rides a wrapper outside the
+ * WebView, which never sees touches that land on the page content in
+ * scrolled-continuous flow — so the chrome could be hidden but never tapped back
+ * into view. Running inside each section's document instead lets us tell a tap
+ * (little movement, short press) from a scroll and post a single message. epub.js
+ * renders each spine section in its own same-origin iframe, so we attach to the
+ * ones already mounted and register a content hook for any rendered later.
+ */
+const TAP_DETECTION_JS = `(function () {
+  if (window.__lesaTapInstalled) return;
+  window.__lesaTapInstalled = true;
+  var MOVE_TOLERANCE = 10;
+  var MAX_DURATION = 300;
+  function postTap() {
+    try {
+      var rn = window.ReactNativeWebView || window;
+      rn.postMessage(JSON.stringify({ type: '${EPUB_TAP_MESSAGE}' }));
+    } catch (e) {}
+  }
+  function attach(doc) {
+    if (!doc || doc.__lesaTapDoc) return;
+    doc.__lesaTapDoc = true;
+    var startX = 0, startY = 0, startT = 0, moved = false;
+    doc.addEventListener('touchstart', function (e) {
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      startX = t.clientX; startY = t.clientY; startT = Date.now(); moved = false;
+    }, true);
+    doc.addEventListener('touchmove', function (e) {
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      if (Math.abs(t.clientX - startX) > MOVE_TOLERANCE ||
+          Math.abs(t.clientY - startY) > MOVE_TOLERANCE) moved = true;
+    }, true);
+    doc.addEventListener('touchend', function () {
+      if (!moved && Date.now() - startT < MAX_DURATION) postTap();
+    }, true);
+  }
+  try {
+    if (typeof rendition !== 'undefined' && rendition) {
+      if (rendition.hooks && rendition.hooks.content) {
+        rendition.hooks.content.register(function (contents) {
+          attach(contents && contents.document);
+        });
+      }
+      var current = rendition.getContents ? rendition.getContents() : null;
+      if (current && !current.forEach) current = [current];
+      (current || []).forEach(function (c) { attach(c && c.document); });
+    }
+  } catch (e) {}
+})();
+true;`;
 
 /**
  * EPUB engine implementation of the {@link ReaderView} contract, backed by
@@ -37,12 +96,15 @@ function EpubReaderInner({
   initialPosition,
   theme,
   typography,
+  controlsVisible = true,
   onPositionChange,
   onProgress,
+  onCoverExtracted,
+  onTap,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
-  const { goToLocation, changeFontSize, changeFontFamily, changeTheme } = useReader();
+  const { goToLocation, changeFontSize, changeFontFamily, changeTheme, getMeta } = useReader();
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
@@ -56,6 +118,23 @@ function EpubReaderInner({
   const readyRef = useRef(false);
   // Latest known reading position, used to re-anchor after a reflow.
   const lastCfiRef = useRef<string | undefined>(initialCfi);
+  // The cover is delivered once via a `meta` message after the book parses
+  // (epub.js posts it asynchronously, after onReady), so emit it a single time.
+  const coverEmittedRef = useRef(false);
+
+  // Best-effort cover extraction. epub.js delivers the cover as a base64 data URL
+  // asynchronously (after onReady) via the reader context's metadata. `getMeta`'s
+  // identity changes when that metadata updates, so this effect re-runs and picks
+  // the cover up once. Surface it so the library can persist a thumbnail; the
+  // reader stays unaware of where covers are stored.
+  useEffect(() => {
+    if (coverEmittedRef.current || !onCoverExtracted) return;
+    const cover = getMeta()?.cover;
+    if (typeof cover === 'string' && cover.startsWith('data:')) {
+      coverEmittedRef.current = true;
+      onCoverExtracted(cover);
+    }
+  }, [getMeta, onCoverExtracted]);
 
   // Live theme/typography. A continuous-flow reflow scrolls to the top, so jump
   // back to the current location once it settles to kill the first-page flash.
@@ -94,6 +173,10 @@ function EpubReaderInner({
         manager="continuous"
         initialLocation={initialCfi}
         defaultTheme={initialTheme}
+        injectedJavascript={TAP_DETECTION_JS}
+        onWebViewMessage={(event) => {
+          if (event?.type === EPUB_TAP_MESSAGE) onTap?.();
+        }}
         onReady={() => {
           readyRef.current = true;
           // Apply persisted typography once the book is laid out.
@@ -133,21 +216,40 @@ function EpubReaderInner({
         }}
       />
 
-      <ContentsButton theme={theme} onPress={() => setTocVisible(true)} />
+      <ContentsButton theme={theme} visible={controlsVisible} onPress={() => setTocVisible(true)} />
       <ContentsModal theme={theme} visible={tocVisible} onClose={() => setTocVisible(false)} />
     </View>
   );
 }
 
-function ContentsButton({ theme, onPress }: { theme: ReaderTheme; onPress: () => void }) {
+function ContentsButton({
+  theme,
+  visible,
+  onPress,
+}: {
+  theme: ReaderTheme;
+  visible: boolean;
+  onPress: () => void;
+}) {
+  const [opacity] = useState(() => new Animated.Value(visible ? 1 : 0));
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: visible ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, opacity]);
+
   return (
-    <Pressable
-      accessibilityLabel="Chapters"
-      onPress={onPress}
-      style={[styles.tocButton, { backgroundColor: theme.backgroundElement }]}
+    <Animated.View
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={[styles.tocButton, { backgroundColor: theme.backgroundElement, opacity }]}
     >
-      <Text style={{ color: theme.text }}>Chapters</Text>
-    </Pressable>
+      <Pressable accessibilityLabel="Chapters" onPress={onPress}>
+        <Text style={{ color: theme.text }}>Chapters</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 

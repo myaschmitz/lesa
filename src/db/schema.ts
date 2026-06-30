@@ -24,6 +24,11 @@ const MIGRATIONS: ((db: SQLiteDatabase) => Promise<void>)[] = [
       );
     `);
   },
+  // v2: display-only reading progress (0–1). Never the opaque position token;
+  // PDFs derive it from page/pageCount, EPUBs from the locator percentage.
+  async (db) => {
+    await db.execAsync(`ALTER TABLE books ADD COLUMN progress REAL;`);
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

@@ -4,10 +4,13 @@ import {
   deleteBook,
   getAllBooks,
   getBookById,
+  updateCover,
   updateLastOpenedAt,
   updateLastPosition,
+  updateProgress,
 } from '@/db/books';
 import { confirmDuplicate } from '@/library/duplicate-prompt';
+import { saveCoverDataUrl } from '@/library/covers';
 import {
   findDuplicateFor,
   importCandidate,
@@ -15,7 +18,7 @@ import {
   type ImportCandidate,
 } from '@/library/import';
 import { candidateFromUri, cleanupIncomingFile } from '@/library/incoming';
-import { deleteBookFile } from '@/library/paths';
+import { deleteBookFile, deleteCoverFile } from '@/library/paths';
 import { reconcileCatalog } from '@/library/reconcile';
 import type { Book } from '@/types/book';
 
@@ -30,6 +33,8 @@ interface LibraryState {
   init: () => Promise<void>;
   /** Reload the catalog from the database. */
   refresh: () => Promise<void>;
+  /** Dismiss the current error message. */
+  clearError: () => void;
   /** Open the document picker and import the chosen books. */
   importFromPicker: () => Promise<number>;
   /** Import a book handed off via the share sheet / "Open in Lesa". */
@@ -42,6 +47,10 @@ interface LibraryState {
   markOpened: (id: string) => Promise<void>;
   /** Persist a reader's opaque position token for a book. */
   saveReadingPosition: (id: string, position: string) => Promise<void>;
+  /** Persist an extracted cover (base64 data URL) for a book. */
+  saveCover: (id: string, dataUrl: string) => Promise<void>;
+  /** Persist display-only reading progress (0–1) for a book. */
+  saveProgress: (id: string, fraction: number) => Promise<void>;
 }
 
 /** Imports candidates, prompting on likely duplicates. Returns count imported. */
@@ -84,6 +93,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
+  clearError: () => set({ error: null }),
+
   importFromPicker: async () => {
     set({ importing: true });
     try {
@@ -121,7 +132,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   removeBook: async (id: string) => {
     const book = get().books.find((b) => b.id === id);
     try {
-      if (book) deleteBookFile(book.relativePath);
+      if (book) {
+        deleteBookFile(book.relativePath);
+        deleteCoverFile(book.coverRelativePath);
+      }
       await deleteBook(id);
       set({ books: get().books.filter((b) => b.id !== id) });
     } catch (error) {
@@ -145,7 +159,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     try {
       await updateLastOpenedAt(id, timestamp);
       set({
-        books: get().books.map((b) => (b.id === id ? { ...b, lastOpenedAt: timestamp } : b)),
+        books: get()
+          .books.map((b) => (b.id === id ? { ...b, lastOpenedAt: timestamp } : b))
+          .sort((a, b) => (b.lastOpenedAt ?? b.addedAt) - (a.lastOpenedAt ?? a.addedAt)),
       });
     } catch (error) {
       set({ error: errorMessage(error) });
@@ -158,6 +174,27 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       set({
         books: get().books.map((b) => (b.id === id ? { ...b, lastPosition: position } : b)),
       });
+    } catch (error) {
+      set({ error: errorMessage(error) });
+    }
+  },
+
+  saveCover: async (id: string, dataUrl: string) => {
+    try {
+      const coverRelativePath = saveCoverDataUrl(id, dataUrl);
+      if (!coverRelativePath) return;
+      await updateCover(id, coverRelativePath);
+      set({ books: get().books.map((b) => (b.id === id ? { ...b, coverRelativePath } : b)) });
+    } catch (error) {
+      set({ error: errorMessage(error) });
+    }
+  },
+
+  saveProgress: async (id: string, fraction: number) => {
+    const clamped = Math.min(1, Math.max(0, fraction));
+    try {
+      await updateProgress(id, clamped);
+      set({ books: get().books.map((b) => (b.id === id ? { ...b, progress: clamped } : b)) });
     } catch (error) {
       set({ error: errorMessage(error) });
     }

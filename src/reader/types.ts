@@ -63,10 +63,28 @@ export interface ReaderViewProps {
   theme: ReaderTheme;
   /** EPUB only; ignored by fixed-layout engines such as PDF. */
   typography?: ReaderTypography;
+  /**
+   * Whether the immersive chrome is currently shown. Engines mirror it for any
+   * in-content controls (e.g. the EPUB Chapters button) so everything hides
+   * together for a clean reading view. Defaults to shown.
+   */
+  controlsVisible?: boolean;
+  /**
+   * A deliberate single tap on the content (not a scroll or swipe). Each engine
+   * detects this with its own gesture recognizer — epub.js distinguishes taps
+   * from scrolls inside its WebView, PDFKit via a parent tap recogniser — so the
+   * screen can toggle the immersive chrome without a swipe ever flashing it.
+   */
+  onTap?: () => void;
   /** Emits an opaque per-format position token as the reading position changes. */
   onPositionChange: (position: string) => void;
   /** Display-only progress for the page indicator; never used for persistence. */
   onProgress?: (progress: ReaderProgress) => void;
+  /**
+   * EPUB only: emits the book cover as a base64 data URL once available, so the
+   * library can persist it. Fixed-layout engines (PDF) never call this.
+   */
+  onCoverExtracted?: (dataUrl: string) => void;
   /** Called once the document has loaded and is ready to read. */
   onReady?: () => void;
 }

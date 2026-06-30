@@ -56,7 +56,7 @@ export function ReaderChrome({ tokens, visible, title, progress, onClose, onOpen
         </View>
         <Pressable
           onPress={onClose}
-          hitSlop={Spacing.two}
+          hitSlop={Spacing.three}
           accessibilityLabel="Close book"
           style={[styles.circle, styles.topRight, { backgroundColor: pillBg }]}
         >
@@ -117,7 +117,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
   },
-  topRight: { position: 'absolute', right: Spacing.three },
+  topRight: {
+    position: 'absolute',
+    right: Spacing.three,
+    transform: [{ translateY: Spacing.two }],
+  },
   bottomRight: { position: 'absolute', right: Spacing.three },
   pill: {
     maxWidth: '70%',
