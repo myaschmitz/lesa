@@ -9,6 +9,7 @@ import {
   updateLastPosition,
   updateProgress,
 } from '@/db/books';
+import { deleteHighlightsForBook } from '@/db/highlights';
 import { confirmDuplicate } from '@/library/duplicate-prompt';
 import { saveCoverDataUrl } from '@/library/covers';
 import {
@@ -136,6 +137,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         deleteBookFile(book.relativePath);
         deleteCoverFile(book.coverRelativePath);
       }
+      await deleteHighlightsForBook(id);
       await deleteBook(id);
       set({ books: get().books.filter((b) => b.id !== id) });
     } catch (error) {

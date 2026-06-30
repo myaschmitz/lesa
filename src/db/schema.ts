@@ -29,6 +29,26 @@ const MIGRATIONS: ((db: SQLiteDatabase) => Promise<void>)[] = [
   async (db) => {
     await db.execAsync(`ALTER TABLE books ADD COLUMN progress REAL;`);
   },
+  // v3: persistent highlights & notes. Metadata + an OPAQUE per-format anchor
+  // (EPUB cfiRange; PDF page+rect if ever supported) + a small selected-text
+  // snapshot for the list — never book content. `color` is a palette token KEY
+  // (e.g. `yellow`), not raw CSS, so theming maps it per mode. Anchors are never
+  // unified across engines (see docs/ARCHITECTURE.md → golden rule #5).
+  async (db) => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS highlights (
+        id TEXT PRIMARY KEY NOT NULL,
+        bookId TEXT NOT NULL,
+        anchor TEXT NOT NULL,
+        color TEXT NOT NULL,
+        text TEXT NOT NULL,
+        note TEXT,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_highlights_book ON highlights (bookId, createdAt);
+    `);
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

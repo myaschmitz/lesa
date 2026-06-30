@@ -50,6 +50,23 @@ export interface ReaderProgress {
 }
 
 /**
+ * An engine-neutral highlight the reader should render. `anchor` is an OPAQUE,
+ * per-format token (EPUB cfiRange; PDF page+rect if ever supported) — the engine
+ * is the only code that understands it, and it is never unified across engines
+ * (see docs/ARCHITECTURE.md → golden rule #5). `color` is an already-resolved CSS
+ * colour: the engine paints exactly this and stays unaware of palette tokens,
+ * notes, or persistence (all owned by the screen).
+ */
+export interface ReaderHighlight {
+  /** App-owned id, stashed with the engine annotation so a press maps back. */
+  id: string;
+  /** Opaque per-format anchor identifying the highlighted range. */
+  anchor: string;
+  /** Resolved CSS colour the engine paints the highlight in. */
+  color: string;
+}
+
+/**
  * Props every engine implementation accepts. `initialPosition` and the value
  * passed to `onPositionChange` are OPAQUE, per-format tokens: only the matching
  * engine knows their shape (PDF = page+offset, EPUB = locator/CFI). They are
@@ -87,4 +104,31 @@ export interface ReaderViewProps {
   onCoverExtracted?: (dataUrl: string) => void;
   /** Called once the document has loaded and is ready to read. */
   onReady?: () => void;
+  /**
+   * Persistent highlights the engine should currently render (Phase 15). The
+   * engine diffs this set against what it has painted and adds/removes/recolours
+   * accordingly. Engine-neutral: anchors are opaque and colours are pre-resolved.
+   * Engines that can't render highlights (e.g. PDF today) ignore this.
+   */
+  highlights?: ReaderHighlight[];
+  /**
+   * The user selected text that could become a highlight. `anchor` is the opaque
+   * per-format token for the selection; the screen turns this into a saved
+   * highlight after the user picks a colour. Engines without selection ignore it.
+   */
+  onSelectionForHighlight?: (text: string, anchor: string) => void;
+  /**
+   * A previously reported text selection was cleared (the user deselected
+   * without choosing an action). The screen uses this to dismiss the highlight
+   * colour bar. Engines that can't observe deselection simply never call it.
+   */
+  onSelectionCleared?: () => void;
+  /** An existing rendered highlight was tapped; identified by its app id. */
+  onPressHighlight?: (id: string) => void;
+  /**
+   * Declarative jump request used by the highlights list: when `nonce` changes
+   * the engine navigates to `anchor`. The nonce lets the same anchor be
+   * re-targeted. `anchor` is opaque; engines that can't navigate ignore it.
+   */
+  jumpTarget?: { anchor: string; nonce: number };
 }

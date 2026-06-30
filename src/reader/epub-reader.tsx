@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
+import { HIGHLIGHT_PAINT_OPACITY } from '@/theme/highlight-colors';
 import { fontSizeToCss } from '@/theme/typography';
 
 import { useEpubFileSystem } from './epub-file-system';
@@ -20,6 +21,21 @@ import type { ReaderTheme, ReaderTypography, ReaderViewProps } from './types';
 
 /** Message type posted by the injected tap detector below. */
 const EPUB_TAP_MESSAGE = 'lesaEpubTap';
+
+/**
+ * Message posted by the injected selection watcher when an active text selection
+ * collapses (the user deselected). epub.js only reports *new* selections via
+ * `onSelected`; it never tells us when one goes away, so we watch
+ * `selectionchange` inside each section document and report the clear ourselves.
+ */
+const EPUB_SELECTION_CLEARED_MESSAGE = 'lesaEpubSelectionCleared';
+
+/**
+ * Window used to disambiguate a tap on a highlight (which fires both the tap
+ * detector and epub.js `markClicked`) from a tap on the page. The chrome toggle
+ * is deferred this long and cancelled if a highlight press arrives.
+ */
+const TAP_PRESS_GUARD_MS = 80;
 
 /**
  * Detects a deliberate tap *inside* the epub.js iframes and reports it back to
@@ -36,11 +52,14 @@ const TAP_DETECTION_JS = `(function () {
   window.__lesaTapInstalled = true;
   var MOVE_TOLERANCE = 10;
   var MAX_DURATION = 300;
-  function postTap() {
+  function post(payload) {
     try {
       var rn = window.ReactNativeWebView || window;
-      rn.postMessage(JSON.stringify({ type: '${EPUB_TAP_MESSAGE}' }));
+      rn.postMessage(JSON.stringify(payload));
     } catch (e) {}
+  }
+  function postTap() {
+    post({ type: '${EPUB_TAP_MESSAGE}' });
   }
   function attach(doc) {
     if (!doc || doc.__lesaTapDoc) return;
@@ -59,6 +78,15 @@ const TAP_DETECTION_JS = `(function () {
     }, true);
     doc.addEventListener('touchend', function () {
       if (!moved && Date.now() - startT < MAX_DURATION) postTap();
+    }, true);
+    // Report when an active selection collapses so the highlight bar can hide.
+    doc.addEventListener('selectionchange', function () {
+      try {
+        var sel = doc.getSelection ? doc.getSelection() : null;
+        var has = !!(sel && !sel.isCollapsed && String(sel).length > 0);
+        if (doc.__lesaHadSelection && !has) post({ type: '${EPUB_SELECTION_CLEARED_MESSAGE}' });
+        doc.__lesaHadSelection = has;
+      } catch (e) {}
     }, true);
   }
   try {
@@ -97,14 +125,28 @@ function EpubReaderInner({
   theme,
   typography,
   controlsVisible = true,
+  highlights = [],
   onPositionChange,
   onProgress,
   onCoverExtracted,
+  onSelectionForHighlight,
+  onSelectionCleared,
+  onPressHighlight,
+  jumpTarget,
   onTap,
   onReady,
 }: ReaderViewProps) {
   const { width, height } = useWindowDimensions();
-  const { goToLocation, changeFontSize, changeFontFamily, changeTheme, getMeta } = useReader();
+  const {
+    goToLocation,
+    changeFontSize,
+    changeFontFamily,
+    changeTheme,
+    getMeta,
+    addAnnotation,
+    removeAnnotationByCfi,
+    removeSelection,
+  } = useReader();
   const [tocVisible, setTocVisible] = useState(false);
 
   const initialCfi = useMemo(() => parseEpubPosition(initialPosition)?.cfi, [initialPosition]);
@@ -116,11 +158,25 @@ function EpubReaderInner({
   // Ignore location events until ready so the initial layout can't clobber a
   // saved CFI before the restore jump lands.
   const readyRef = useRef(false);
+  // Drives the highlight reconcile / jump effects, which must wait until epub.js
+  // has laid out the book before annotations can be painted or navigated to.
+  const [engineReady, setEngineReady] = useState(false);
   // Latest known reading position, used to re-anchor after a reflow.
   const lastCfiRef = useRef<string | undefined>(initialCfi);
   // The cover is delivered once via a `meta` message after the book parses
   // (epub.js posts it asynchronously, after onReady), so emit it a single time.
   const coverEmittedRef = useRef(false);
+  // id -> the {anchor, color} we have currently painted, so the reconcile effect
+  // can diff against the incoming highlights prop and add/remove/recolour.
+  const paintedRef = useRef<Map<string, { anchor: string; color: string }>>(new Map());
+  // Tapping a highlight fires BOTH epub.js `markClicked` (→ onPressHighlight) and
+  // the injected tap detector (→ onTap). We defer the chrome toggle briefly and
+  // cancel it if a highlight press lands in the same window, so a highlight tap
+  // opens its editor without also toggling the chrome.
+  const pendingTapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAnnotationPressAtRef = useRef(0);
+  // Last jump nonce we acted on, so unrelated re-renders don't re-navigate.
+  const lastJumpNonceRef = useRef<number | undefined>(undefined);
 
   // Best-effort cover extraction. epub.js delivers the cover as a base64 data URL
   // asynchronously (after onReady) via the reader context's metadata. `getMeta`'s
@@ -162,6 +218,83 @@ function EpubReaderInner({
     typography,
   ]);
 
+  // Reconcile the painted highlights against the desired set. epub.js stores
+  // annotations internally and repaints them as each spine section renders, so
+  // adding them once the engine is ready is enough — even for sections not yet
+  // scrolled into view. The note/colour-token policy stays in the screen; the
+  // engine only ever sees an opaque anchor and a resolved CSS colour.
+  useEffect(() => {
+    if (!engineReady) return;
+    const painted = paintedRef.current;
+    let added = false;
+
+    // Remove highlights that are gone or whose anchor/colour changed.
+    for (const [id, prev] of [...painted.entries()]) {
+      const next = highlights.find((h) => h.id === id);
+      if (!next || next.anchor !== prev.anchor || next.color !== prev.color) {
+        removeAnnotationByCfi(prev.anchor);
+        painted.delete(id);
+      }
+    }
+
+    // Paint highlights we are not currently showing.
+    for (const h of highlights) {
+      if (painted.has(h.id)) continue;
+      addAnnotation(
+        'highlight',
+        h.anchor,
+        { id: h.id },
+        {
+          color: h.color,
+          opacity: HIGHLIGHT_PAINT_OPACITY,
+        },
+      );
+      painted.set(h.id, { anchor: h.anchor, color: h.color });
+      added = true;
+    }
+
+    // Clear the blue OS selection left over from a just-created highlight.
+    if (added) removeSelection();
+  }, [highlights, engineReady, addAnnotation, removeAnnotationByCfi, removeSelection]);
+
+  // Declarative jump-to-anchor for the highlights list. Re-runs only when the
+  // nonce advances, so the same anchor can be re-targeted.
+  useEffect(() => {
+    if (!engineReady) return;
+    const nonce = jumpTarget?.nonce;
+    if (nonce == null || nonce === lastJumpNonceRef.current) return;
+    lastJumpNonceRef.current = nonce;
+    if (jumpTarget?.anchor) goToLocation(jumpTarget.anchor);
+  }, [jumpTarget, engineReady, goToLocation]);
+
+  // Cancel any deferred tap toggle on unmount.
+  useEffect(
+    () => () => {
+      if (pendingTapRef.current) clearTimeout(pendingTapRef.current);
+    },
+    [],
+  );
+
+  const handleTapMessage = () => {
+    // A highlight press just happened — this tap belongs to it; ignore it.
+    if (Date.now() - lastAnnotationPressAtRef.current < TAP_PRESS_GUARD_MS) return;
+    if (pendingTapRef.current) clearTimeout(pendingTapRef.current);
+    pendingTapRef.current = setTimeout(() => {
+      pendingTapRef.current = null;
+      onTap?.();
+    }, TAP_PRESS_GUARD_MS);
+  };
+
+  const handlePressAnnotation = (annotation: { data?: { id?: string } }) => {
+    lastAnnotationPressAtRef.current = Date.now();
+    if (pendingTapRef.current) {
+      clearTimeout(pendingTapRef.current);
+      pendingTapRef.current = null;
+    }
+    const id = annotation?.data?.id;
+    if (typeof id === 'string') onPressHighlight?.(id);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Reader
@@ -175,14 +308,19 @@ function EpubReaderInner({
         defaultTheme={initialTheme}
         // Enables native text selection inside the epub.js iframes and, by
         // leaving `menuItems` unset, keeps the system iOS callout menu
-        // (Copy / Look Up / Share). Without this the library injects
+        // (Copy / Look Up / Share) from Phase 14. Without this the library injects
         // `user-select: none` / `-webkit-touch-callout: none` into every spine
-        // section, which suppresses both selection and the menu. This is
-        // transient OS selection only — persistent highlights are a later phase.
+        // section, which suppresses both selection and the menu. Persistent
+        // highlights (Phase 15) ride on top of this via `onSelected` below — we
+        // deliberately do NOT pass `menuItems`, which would replace the native
+        // menu and regress Phase 14.
         enableSelection
+        onSelected={(text, cfiRange) => onSelectionForHighlight?.(text, cfiRange)}
+        onPressAnnotation={handlePressAnnotation}
         injectedJavascript={TAP_DETECTION_JS}
         onWebViewMessage={(event) => {
-          if (event?.type === EPUB_TAP_MESSAGE) onTap?.();
+          if (event?.type === EPUB_TAP_MESSAGE) handleTapMessage();
+          else if (event?.type === EPUB_SELECTION_CLEARED_MESSAGE) onSelectionCleared?.();
         }}
         onReady={() => {
           readyRef.current = true;
@@ -204,6 +342,8 @@ function EpubReaderInner({
           } else {
             onReady?.();
           }
+          // Highlights can be painted / navigated to now that layout exists.
+          setEngineReady(true);
         }}
         onLocationChange={(_total, location) => {
           if (!readyRef.current) return;

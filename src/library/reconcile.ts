@@ -1,4 +1,5 @@
 import { deleteBook, getAllBooks } from '@/db/books';
+import { deleteHighlightsForBook } from '@/db/highlights';
 import { bookFileExists, deleteCoverFile } from '@/library/paths';
 import type { Book } from '@/types/book';
 
@@ -32,6 +33,10 @@ export async function reconcileCatalog(): Promise<ReconcileResult> {
 
   for (const book of orphaned) {
     deleteCoverFile(book.coverRelativePath);
+    // SQLite does not enforce FKs unless `PRAGMA foreign_keys = ON` per
+    // connection, so we prune dependent highlight rows explicitly rather than
+    // relying on a cascade — otherwise a pruned book would orphan its highlights.
+    await deleteHighlightsForBook(book.id);
     await deleteBook(book.id);
   }
 

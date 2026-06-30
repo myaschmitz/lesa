@@ -18,6 +18,8 @@ interface Props {
   progress?: ReaderProgress;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** Opens the highlights list. Only provided for engines that support them. */
+  onOpenHighlights?: () => void;
 }
 
 /**
@@ -27,7 +29,15 @@ interface Props {
  * {@link ReaderProgress} the screen forwards). Fades in/out and respects
  * safe-area insets so the book underneath fills the screen.
  */
-export function ReaderChrome({ tokens, visible, title, progress, onClose, onOpenSettings }: Props) {
+export function ReaderChrome({
+  tokens,
+  visible,
+  title,
+  progress,
+  onClose,
+  onOpenSettings,
+  onOpenHighlights,
+}: Props) {
   const insets = useSafeAreaInsets();
   const [opacity] = useState(() => new Animated.Value(1));
 
@@ -49,6 +59,21 @@ export function ReaderChrome({ tokens, visible, title, progress, onClose, onOpen
       style={[StyleSheet.absoluteFill, styles.root, { opacity }]}
     >
       <View style={[styles.topRow, { paddingTop: insets.top + Spacing.two }]}>
+        {onOpenHighlights ? (
+          <Pressable
+            onPress={onOpenHighlights}
+            hitSlop={Spacing.three}
+            accessibilityLabel="Highlights"
+            style={[styles.circle, styles.topLeft, { backgroundColor: pillBg }]}
+          >
+            <SymbolView
+              name="highlighter"
+              size={20}
+              tintColor={tokens.text}
+              fallback={<Text style={[styles.glyph, { color: tokens.text }]}>✎</Text>}
+            />
+          </Pressable>
+        ) : null}
         <View style={[styles.pill, { backgroundColor: pillBg }]}>
           <Text numberOfLines={1} style={[styles.title, { color: tokens.text }]}>
             {title}
@@ -120,6 +145,11 @@ const styles = StyleSheet.create({
   topRight: {
     position: 'absolute',
     right: Spacing.three,
+    transform: [{ translateY: Spacing.two }],
+  },
+  topLeft: {
+    position: 'absolute',
+    left: Spacing.three,
     transform: [{ translateY: Spacing.two }],
   },
   bottomRight: { position: 'absolute', right: Spacing.three },
