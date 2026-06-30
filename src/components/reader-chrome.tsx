@@ -18,6 +18,8 @@ interface Props {
   progress?: ReaderProgress;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** Opens the highlights list. Only provided for engines that support them. */
+  onOpenHighlights?: () => void;
 }
 
 /**
@@ -27,7 +29,15 @@ interface Props {
  * {@link ReaderProgress} the screen forwards). Fades in/out and respects
  * safe-area insets so the book underneath fills the screen.
  */
-export function ReaderChrome({ tokens, visible, title, progress, onClose, onOpenSettings }: Props) {
+export function ReaderChrome({
+  tokens,
+  visible,
+  title,
+  progress,
+  onClose,
+  onOpenSettings,
+  onOpenHighlights,
+}: Props) {
   const insets = useSafeAreaInsets();
   const [opacity] = useState(() => new Animated.Value(1));
 
@@ -70,6 +80,21 @@ export function ReaderChrome({ tokens, visible, title, progress, onClose, onOpen
       </View>
 
       <View style={[styles.bottomRow, { paddingBottom: insets.bottom + Spacing.two }]}>
+        {onOpenHighlights ? (
+          <Pressable
+            onPress={onOpenHighlights}
+            hitSlop={Spacing.two}
+            accessibilityLabel="Highlights"
+            style={[styles.fab, styles.bottomLeft, { backgroundColor: pillBg }]}
+          >
+            <SymbolView
+              name="highlighter"
+              size={22}
+              tintColor={tokens.text}
+              fallback={<Text style={[styles.glyph, { color: tokens.text }]}>✎</Text>}
+            />
+          </Pressable>
+        ) : null}
         {label ? (
           <View style={[styles.pill, { backgroundColor: pillBg }]}>
             <Text style={[styles.indicator, { color: tokens.textSecondary }]}>{label}</Text>
@@ -123,6 +148,7 @@ const styles = StyleSheet.create({
     transform: [{ translateY: Spacing.two }],
   },
   bottomRight: { position: 'absolute', right: Spacing.three },
+  bottomLeft: { position: 'absolute', left: Spacing.three },
   pill: {
     maxWidth: '70%',
     borderRadius: SIZE / 2,

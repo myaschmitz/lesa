@@ -29,6 +29,15 @@ export interface PdfReaderProps extends ReaderViewProps {
  * a later phase. Note: only PDFs with a real text layer are selectable;
  * scanned/image-only PDFs have no text and cannot be selected (an inherent
  * PDFKit limitation).
+ *
+ * Persistent highlights (Phase 15) are NOT supported by this engine:
+ * `@kishannareshpal/expo-pdf` 0.3.2 exposes no selection callback, annotation
+ * creation, or restore API in JS or its native Swift module (only props +
+ * load/page/error events). The engine-neutral highlight props
+ * (`highlights`, `onSelectionForHighlight`, `onPressHighlight`, `jumpTarget`)
+ * are therefore accepted but ignored here — graceful degradation, the same
+ * pattern as PDF covers (Phase 7) and PDF selection limits (Phase 14). PDF
+ * highlights remain a documented follow-up needing a native PDFKit patch.
  */
 export function PdfReader({
   absolutePath,

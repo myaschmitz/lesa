@@ -218,20 +218,32 @@ transient selection, **not** saved highlights (that's Phase 15).
       scanned/image-only PDFs have no text and cannot be selected (inherent).
 - Branch: `text-selection-copy`.
 
-## Phase 15 — Highlights & annotations (persistent)  `[ ]`
+## Phase 15 — Highlights & annotations (persistent)  `[x]`
 **Goal:** the *other* kind of highlight — select text and **mark it in a color**
 (yellow, etc.), **saved** to the book and retrievable later, like highlighting in
 a physical book. Builds on Phase 14's selection.
-- [ ] New `highlights` table: `bookId`, opaque **anchor** (EPUB: CFI **range**;
-      PDF: page + rect(s) — per-format, *not* unified), `color`, selected text
-      snapshot, optional note, `createdAt`.
-- [ ] **EPUB:** epub.js `rendition.annotations.highlight(cfiRange, …)` renders
-      colored highlights natively over the text — strong fit.
-- [ ] **PDF:** PDFKit supports highlight annotations, but the current engine may
-      not expose creating them; **verify** — likely **EPUB-first**, PDF
-      highlights as a follow-up.
-- [ ] Highlight color picker; a **Highlights list** per book → tap to jump;
-      delete a highlight.
+- [x] New `highlights` table (migration v3): `bookId`, opaque **anchor** (EPUB:
+      CFI **range**; PDF: page + rect(s) — per-format, *not* unified), `color`
+      (palette token KEY, not raw CSS), selected text snapshot, optional note,
+      `createdAt`/`updatedAt`. Deleting a book cascades its highlights.
+- [x] **EPUB:** drives the library's native annotation API (`addAnnotation`/
+      `removeAnnotationByCfi`/`onSelected`/`onPressAnnotation`/`removeSelection`)
+      via an engine-agnostic contract (`ReaderHighlight` + `highlights`,
+      `onSelectionForHighlight`, `onPressHighlight`, `jumpTarget`). Colored
+      highlights render natively over the text, restore on reopen/reinstall, and
+      respect all 5 themes via palette tokens. `menuItems` stays unset so Phase
+      14's native iOS Copy/Look Up menu is preserved.
+- [ ] **PDF:** deferred. `@kishannareshpal/expo-pdf` 0.3.2 exposes no selection
+      or annotation API in JS *or* its native Swift module (only props +
+      load/page/error events). PDFKit *can* do `.highlight`, but exposing
+      create + restore + tap needs a substantial native patch (capture
+      `PDFSelection` → page+rects, add `PDFAnnotation`, restore on load, tap
+      event). Graceful degradation, same as Phase 7 covers / Phase 14 PDF — a
+      follow-up. The contract is engine-agnostic so PDF can supply its own
+      opaque anchor later with no app-layer change.
+- [x] Highlight color picker (floating bar on selection); per-book **Highlights
+      list** → tap to jump; tap a highlight to view/edit its note, change color,
+      or delete; optional note per highlight.
 - Branch: `highlights-annotations`.
 
 ## Phase 16 — Exact EPUB page counts  `[ ]`

@@ -1,7 +1,10 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { HighlightColorBar } from '@/components/highlight-color-bar';
+import { HighlightNoteEditor } from '@/components/highlight-note-editor';
+import { HighlightsListSheet } from '@/components/highlights-list-sheet';
 import { ReaderChrome } from '@/components/reader-chrome';
 import { ReaderSettingsSheet } from '@/components/reader-settings-sheet';
 import { ThemedText } from '@/components/themed-text';
@@ -9,11 +12,20 @@ import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { bookFileExists, toAbsoluteUri } from '@/library/paths';
-import { ReaderView, useReaderTheme, useReaderTypography, type ReaderProgress } from '@/reader';
+import {
+  ReaderView,
+  useReaderTheme,
+  useReaderTypography,
+  type ReaderHighlight,
+  type ReaderProgress,
+} from '@/reader';
+import { useHighlightsStore } from '@/store/highlights-store';
 import { useLibraryStore } from '@/store/library-store';
 import { useSettingsStore } from '@/store/settings-store';
+import { DEFAULT_HIGHLIGHT_COLOR, resolveHighlightPaintColor } from '@/theme/highlight-colors';
 import { resolveThemeTokens } from '@/theme/themes';
 import type { Book } from '@/types/book';
+import type { HighlightColorKey } from '@/types/highlight';
 
 const POSITION_SAVE_DEBOUNCE_MS = 800;
 const CHROME_AUTO_HIDE_MS = 3000;
@@ -43,12 +55,125 @@ export default function ReaderScreen() {
   const saveCover = useLibraryStore((s) => s.saveCover);
   const saveProgress = useLibraryStore((s) => s.saveProgress);
 
+  const highlightsByBook = useHighlightsStore((s) => s.byBook);
+  const loadHighlights = useHighlightsStore((s) => s.loadForBook);
+  const addHighlight = useHighlightsStore((s) => s.add);
+  const setHighlightNote = useHighlightsStore((s) => s.setNote);
+  const setHighlightColor = useHighlightsStore((s) => s.setColor);
+  const removeHighlight = useHighlightsStore((s) => s.remove);
+
   const [book, setBook] = useState<Book | null>(() => books.find((b) => b.id === id) ?? null);
   const [notFound, setNotFound] = useState(false);
   const [ready, setReady] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [progress, setProgress] = useState<ReaderProgress | undefined>();
+
+  // Persistent-highlight UI state. Only EPUB supports highlights today.
+  const isEpub = book?.format === 'epub';
+  const [pendingSelection, setPendingSelection] = useState<{ text: string; anchor: string } | null>(
+    null,
+  );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [autoFocusNote, setAutoFocusNote] = useState(false);
+  const [highlightsVisible, setHighlightsVisible] = useState(false);
+  const [jumpTarget, setJumpTarget] = useState<{ anchor: string; nonce: number } | undefined>();
+  const jumpNonceRef = useRef(0);
+
+  const bookHighlights = useMemo(
+    () => (book ? (highlightsByBook[book.id] ?? []) : []),
+    [book, highlightsByBook],
+  );
+
+  // Engine-neutral highlights: opaque anchor + a colour resolved for the current
+  // surface. The engine never sees palette tokens or notes.
+  const readerHighlights = useMemo<ReaderHighlight[]>(
+    () =>
+      bookHighlights.map((h) => ({
+        id: h.id,
+        anchor: h.anchor,
+        color: resolveHighlightPaintColor(h.color, tokens.isDark),
+      })),
+    [bookHighlights, tokens.isDark],
+  );
+
+  // The highlight currently open in the editor, derived live from the store so
+  // colour/note edits reflect immediately.
+  const editingHighlight = useMemo(
+    () => (editingId ? (bookHighlights.find((h) => h.id === editingId) ?? null) : null),
+    [editingId, bookHighlights],
+  );
+
+  // Load saved highlights once the EPUB is known.
+  useEffect(() => {
+    if (book && isEpub) void loadHighlights(book.id);
+  }, [book, isEpub, loadHighlights]);
+
+  const handleSelectionForHighlight = useCallback((text: string, anchor: string) => {
+    setPendingSelection({ text, anchor });
+  }, []);
+
+  const createFromPending = useCallback(
+    async (color: HighlightColorKey, openNote: boolean) => {
+      if (!book || !pendingSelection) return;
+      const row = await addHighlight({
+        bookId: book.id,
+        anchor: pendingSelection.anchor,
+        color,
+        text: pendingSelection.text,
+      });
+      setPendingSelection(null);
+      if (openNote && row) {
+        setAutoFocusNote(true);
+        setEditingId(row.id);
+      }
+    },
+    [book, pendingSelection, addHighlight],
+  );
+
+  const handlePressHighlight = useCallback((id: string) => {
+    setAutoFocusNote(false);
+    setEditingId(id);
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setEditingId(null);
+    setAutoFocusNote(false);
+  }, []);
+
+  const handleSaveNote = useCallback(
+    (hid: string, note: string) => {
+      void setHighlightNote(hid, note);
+      closeEditor();
+    },
+    [setHighlightNote, closeEditor],
+  );
+
+  const handleDeleteHighlight = useCallback(
+    (hid: string) => {
+      void removeHighlight(hid);
+      closeEditor();
+    },
+    [removeHighlight, closeEditor],
+  );
+
+  const handleChangeColor = useCallback(
+    (hid: string, color: HighlightColorKey) => {
+      void setHighlightColor(hid, color);
+    },
+    [setHighlightColor],
+  );
+
+  const handleJumpToHighlight = useCallback((anchor: string) => {
+    jumpNonceRef.current += 1;
+    setJumpTarget({ anchor, nonce: jumpNonceRef.current });
+    setHighlightsVisible(false);
+  }, []);
+
+  const openHighlightsList = useCallback(() => {
+    setChromeVisible(true);
+    setHighlightsVisible(true);
+  }, []);
 
   // Cold start / deep link: the catalog may not be in memory yet, so resolve the
   // book through the store (which falls back to the database).
@@ -132,6 +257,10 @@ export default function ReaderScreen() {
             controlsVisible={chromeVisible}
             pdfPaging={pdfPaging}
             pdfFit={pdfFit}
+            highlights={isEpub ? readerHighlights : undefined}
+            jumpTarget={isEpub ? jumpTarget : undefined}
+            onSelectionForHighlight={isEpub ? handleSelectionForHighlight : undefined}
+            onPressHighlight={isEpub ? handlePressHighlight : undefined}
             onPositionChange={persistPosition}
             onProgress={handleProgress}
             onCoverExtracted={handleCover}
@@ -157,7 +286,41 @@ export default function ReaderScreen() {
           progress={progress}
           onClose={() => router.back()}
           onOpenSettings={openSettings}
+          onOpenHighlights={isEpub ? openHighlightsList : undefined}
         />
+      ) : null}
+
+      {state.status === 'ready' && isEpub ? (
+        <>
+          <HighlightColorBar
+            tokens={tokens}
+            visible={pendingSelection !== null}
+            onPick={(color) => void createFromPending(color, false)}
+            onAddNote={() => void createFromPending(DEFAULT_HIGHLIGHT_COLOR, true)}
+            onDismiss={() => setPendingSelection(null)}
+          />
+          <HighlightsListSheet
+            tokens={tokens}
+            visible={highlightsVisible}
+            highlights={bookHighlights}
+            onJump={handleJumpToHighlight}
+            onEdit={(h) => {
+              setHighlightsVisible(false);
+              setAutoFocusNote(false);
+              setEditingId(h.id);
+            }}
+            onClose={() => setHighlightsVisible(false)}
+          />
+          <HighlightNoteEditor
+            tokens={tokens}
+            highlight={editingHighlight}
+            autoFocusNote={autoFocusNote}
+            onChangeColor={handleChangeColor}
+            onSave={handleSaveNote}
+            onDelete={handleDeleteHighlight}
+            onClose={closeEditor}
+          />
+        </>
       ) : null}
 
       {state.status === 'ready' ? (
