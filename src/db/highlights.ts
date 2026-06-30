@@ -5,6 +5,20 @@ import type { Highlight, HighlightColorKey, NewHighlight } from '@/types/highlig
 
 const ALL_COLUMNS = 'id, bookId, anchor, color, text, note, createdAt, updatedAt';
 
+/**
+ * Upper bound on the stored selected-text snapshot. The snapshot exists only so
+ * the highlights list is readable — it is never the source of truth — so we cap
+ * it to keep the DB lean and avoid stashing large content (golden rule #3).
+ */
+const MAX_SNAPSHOT_LENGTH = 500;
+
+/** Trims and caps a selected-text snapshot for storage/display. */
+function boundSnapshot(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= MAX_SNAPSHOT_LENGTH) return trimmed;
+  return `${trimmed.slice(0, MAX_SNAPSHOT_LENGTH - 1).trimEnd()}…`;
+}
+
 /** Inserts a new highlight, generating its id and timestamps, and returns the row. */
 export async function insertHighlight(input: NewHighlight): Promise<Highlight> {
   const db = await getDatabase();
@@ -14,7 +28,7 @@ export async function insertHighlight(input: NewHighlight): Promise<Highlight> {
     bookId: input.bookId,
     anchor: input.anchor,
     color: input.color,
-    text: input.text,
+    text: boundSnapshot(input.text),
     note: input.note ?? null,
     createdAt: now,
     updatedAt: now,
