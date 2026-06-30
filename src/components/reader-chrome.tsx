@@ -59,6 +59,21 @@ export function ReaderChrome({
       style={[StyleSheet.absoluteFill, styles.root, { opacity }]}
     >
       <View style={[styles.topRow, { paddingTop: insets.top + Spacing.two }]}>
+        {onOpenHighlights ? (
+          <Pressable
+            onPress={onOpenHighlights}
+            hitSlop={Spacing.three}
+            accessibilityLabel="Highlights"
+            style={[styles.circle, styles.topLeft, { backgroundColor: pillBg }]}
+          >
+            <SymbolView
+              name="highlighter"
+              size={20}
+              tintColor={tokens.text}
+              fallback={<Text style={[styles.glyph, { color: tokens.text }]}>✎</Text>}
+            />
+          </Pressable>
+        ) : null}
         <View style={[styles.pill, { backgroundColor: pillBg }]}>
           <Text numberOfLines={1} style={[styles.title, { color: tokens.text }]}>
             {title}
@@ -80,21 +95,6 @@ export function ReaderChrome({
       </View>
 
       <View style={[styles.bottomRow, { paddingBottom: insets.bottom + Spacing.two }]}>
-        {onOpenHighlights ? (
-          <Pressable
-            onPress={onOpenHighlights}
-            hitSlop={Spacing.two}
-            accessibilityLabel="Highlights"
-            style={[styles.fab, styles.bottomLeft, { backgroundColor: pillBg }]}
-          >
-            <SymbolView
-              name="highlighter"
-              size={22}
-              tintColor={tokens.text}
-              fallback={<Text style={[styles.glyph, { color: tokens.text }]}>✎</Text>}
-            />
-          </Pressable>
-        ) : null}
         {label ? (
           <View style={[styles.pill, { backgroundColor: pillBg }]}>
             <Text style={[styles.indicator, { color: tokens.textSecondary }]}>{label}</Text>
@@ -147,8 +147,12 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     transform: [{ translateY: Spacing.two }],
   },
+  topLeft: {
+    position: 'absolute',
+    left: Spacing.three,
+    transform: [{ translateY: Spacing.two }],
+  },
   bottomRight: { position: 'absolute', right: Spacing.three },
-  bottomLeft: { position: 'absolute', left: Spacing.three },
   pill: {
     maxWidth: '70%',
     borderRadius: SIZE / 2,

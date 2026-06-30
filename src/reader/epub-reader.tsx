@@ -23,6 +23,14 @@ import type { ReaderTheme, ReaderTypography, ReaderViewProps } from './types';
 const EPUB_TAP_MESSAGE = 'lesaEpubTap';
 
 /**
+ * Message posted by the injected selection watcher when an active text selection
+ * collapses (the user deselected). epub.js only reports *new* selections via
+ * `onSelected`; it never tells us when one goes away, so we watch
+ * `selectionchange` inside each section document and report the clear ourselves.
+ */
+const EPUB_SELECTION_CLEARED_MESSAGE = 'lesaEpubSelectionCleared';
+
+/**
  * Window used to disambiguate a tap on a highlight (which fires both the tap
  * detector and epub.js `markClicked`) from a tap on the page. The chrome toggle
  * is deferred this long and cancelled if a highlight press arrives.
@@ -44,11 +52,14 @@ const TAP_DETECTION_JS = `(function () {
   window.__lesaTapInstalled = true;
   var MOVE_TOLERANCE = 10;
   var MAX_DURATION = 300;
-  function postTap() {
+  function post(payload) {
     try {
       var rn = window.ReactNativeWebView || window;
-      rn.postMessage(JSON.stringify({ type: '${EPUB_TAP_MESSAGE}' }));
+      rn.postMessage(JSON.stringify(payload));
     } catch (e) {}
+  }
+  function postTap() {
+    post({ type: '${EPUB_TAP_MESSAGE}' });
   }
   function attach(doc) {
     if (!doc || doc.__lesaTapDoc) return;
@@ -67,6 +78,15 @@ const TAP_DETECTION_JS = `(function () {
     }, true);
     doc.addEventListener('touchend', function () {
       if (!moved && Date.now() - startT < MAX_DURATION) postTap();
+    }, true);
+    // Report when an active selection collapses so the highlight bar can hide.
+    doc.addEventListener('selectionchange', function () {
+      try {
+        var sel = doc.getSelection ? doc.getSelection() : null;
+        var has = !!(sel && !sel.isCollapsed && String(sel).length > 0);
+        if (doc.__lesaHadSelection && !has) post({ type: '${EPUB_SELECTION_CLEARED_MESSAGE}' });
+        doc.__lesaHadSelection = has;
+      } catch (e) {}
     }, true);
   }
   try {
@@ -110,6 +130,7 @@ function EpubReaderInner({
   onProgress,
   onCoverExtracted,
   onSelectionForHighlight,
+  onSelectionCleared,
   onPressHighlight,
   jumpTarget,
   onTap,
@@ -299,6 +320,7 @@ function EpubReaderInner({
         injectedJavascript={TAP_DETECTION_JS}
         onWebViewMessage={(event) => {
           if (event?.type === EPUB_TAP_MESSAGE) handleTapMessage();
+          else if (event?.type === EPUB_SELECTION_CLEARED_MESSAGE) onSelectionCleared?.();
         }}
         onReady={() => {
           readyRef.current = true;

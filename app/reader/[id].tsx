@@ -113,6 +113,11 @@ export default function ReaderScreen() {
     setPendingSelection({ text, anchor });
   }, []);
 
+  // The user deselected without choosing a colour — hide the colour bar.
+  const handleSelectionCleared = useCallback(() => {
+    setPendingSelection(null);
+  }, []);
+
   const createFromPending = useCallback(
     async (color: HighlightColorKey, openNote: boolean) => {
       if (!book || !pendingSelection) return;
@@ -260,6 +265,7 @@ export default function ReaderScreen() {
             highlights={isEpub ? readerHighlights : undefined}
             jumpTarget={isEpub ? jumpTarget : undefined}
             onSelectionForHighlight={isEpub ? handleSelectionForHighlight : undefined}
+            onSelectionCleared={isEpub ? handleSelectionCleared : undefined}
             onPressHighlight={isEpub ? handlePressHighlight : undefined}
             onPositionChange={persistPosition}
             onProgress={handleProgress}

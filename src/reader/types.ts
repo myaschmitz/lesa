@@ -117,6 +117,12 @@ export interface ReaderViewProps {
    * highlight after the user picks a colour. Engines without selection ignore it.
    */
   onSelectionForHighlight?: (text: string, anchor: string) => void;
+  /**
+   * A previously reported text selection was cleared (the user deselected
+   * without choosing an action). The screen uses this to dismiss the highlight
+   * colour bar. Engines that can't observe deselection simply never call it.
+   */
+  onSelectionCleared?: () => void;
   /** An existing rendered highlight was tapped; identified by its app id. */
   onPressHighlight?: (id: string) => void;
   /**
