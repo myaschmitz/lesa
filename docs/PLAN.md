@@ -204,15 +204,18 @@ sketch it before building.)
 - [ ] Design pass on the search UI before implementing.
 - Branch: `in-book-search`.
 
-## Phase 14 — Text selection & copy  `[ ]`
+## Phase 14 — Text selection & copy  `[x]`
 **Goal:** the *system* selection you expect in any text view — long-press or
 double-tap + drag to select, then the OS **Copy / Look Up / Share** menu. This is
 transient selection, **not** saved highlights (that's Phase 15).
-- [ ] **EPUB:** enable native text selection inside the epub.js WebView and the
-      iOS selection menu (copy/share). Generally well-supported.
-- [ ] **PDF:** depends on the engine — native PDFKit supports text selection, but
-      `@kishannareshpal/expo-pdf` may not expose it; **verify**, ship where
-      supported, degrade gracefully otherwise.
+- [x] **EPUB:** enable native text selection inside the epub.js WebView and the
+      iOS selection menu (copy/share). Done via the `<Reader>` `enableSelection`
+      prop (which removes the library's `user-select: none` CSS); `menuItems` is
+      deliberately left unset so the **native** iOS callout menu is used.
+- [x] **PDF:** native PDFKit `PDFView` has selection enabled by default and the
+      `@kishannareshpal/expo-pdf` wrapper does not suppress it, so the OS menu
+      works with no patch/prop. Limitation: only text-layer PDFs are selectable;
+      scanned/image-only PDFs have no text and cannot be selected (inherent).
 - Branch: `text-selection-copy`.
 
 ## Phase 15 — Highlights & annotations (persistent)  `[ ]`

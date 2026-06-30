@@ -173,6 +173,13 @@ function EpubReaderInner({
         manager="continuous"
         initialLocation={initialCfi}
         defaultTheme={initialTheme}
+        // Enables native text selection inside the epub.js iframes and, by
+        // leaving `menuItems` unset, keeps the system iOS callout menu
+        // (Copy / Look Up / Share). Without this the library injects
+        // `user-select: none` / `-webkit-touch-callout: none` into every spine
+        // section, which suppresses both selection and the menu. This is
+        // transient OS selection only — persistent highlights are a later phase.
+        enableSelection
         injectedJavascript={TAP_DETECTION_JS}
         onWebViewMessage={(event) => {
           if (event?.type === EPUB_TAP_MESSAGE) onTap?.();

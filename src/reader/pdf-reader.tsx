@@ -21,6 +21,14 @@ export interface PdfReaderProps extends ReaderViewProps {
  * `@kishannareshpal/expo-pdf` (Apple PDFKit). Vertical continuous scrolling is
  * the primary mode. This file is the ONLY place that touches the PDF library;
  * screens depend solely on {@link ReaderViewProps}.
+ *
+ * Text selection (long-press → native iOS Copy / Look Up / Share menu) is
+ * provided for free by PDFKit's `PDFView`, which has selection enabled by
+ * default; the wrapper does nothing to suppress it, so no prop or patch is
+ * needed here. This is transient OS selection only — persistent highlights are
+ * a later phase. Note: only PDFs with a real text layer are selectable;
+ * scanned/image-only PDFs have no text and cannot be selected (an inherent
+ * PDFKit limitation).
  */
 export function PdfReader({
   absolutePath,
